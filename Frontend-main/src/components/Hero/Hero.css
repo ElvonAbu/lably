@@ -1,0 +1,198 @@
+.hero-section{
+
+    background:var(--background);
+
+    padding-block:clamp(3rem,6vw,7rem);
+
+}
+
+.hero-layout{
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:space-between;
+
+    gap:clamp(2rem,6vw,5rem);
+
+}
+
+.hero-content{
+
+    flex:1;
+
+    max-width:650px;
+
+}
+
+.hero-subtitle{
+
+    color:var(--primary);
+
+    font-size:clamp(.8rem,.65rem + .5vw,1.1rem);
+
+    font-weight:600;
+
+    letter-spacing:3px;
+
+    margin-bottom:1.2rem;
+
+}
+
+.hero-title{
+
+    color:var(--text);
+
+    font-size:clamp(1.6rem,1.3rem + 3vw,5rem);
+
+    line-height:1.15;
+
+    font-weight:700;
+
+    word-break:break-word;
+
+}
+.hero-title span{
+
+    color:var(--primary);
+
+}
+
+.hero-description{
+
+    color:var(--text-light);
+
+    font-size:clamp(.95rem,.85rem + .4vw,1.15rem);
+
+    line-height:2;
+
+    margin-top:2rem;
+
+    margin-bottom:2.5rem;
+
+}
+
+.hero-btn{
+
+    min-width:clamp(160px,35vw,200px);
+
+}
+
+.hero-image{
+
+    flex:1;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+}
+
+.hero-image img{
+
+    width:min(100%,650px);
+
+    height:auto;
+
+    transition:transform .4s ease;
+
+}
+
+.hero-image img:hover{
+
+    transform:scale(1.02);
+
+}
+
+/* ===========================
+TABLET — structural change
+=========================== */
+
+@media(max-width:992px){
+
+.hero-layout{
+
+flex-direction:column;
+
+text-align:center;
+
+}
+
+.hero-content{
+
+max-width:100%;
+
+}
+
+.hero-description{
+
+margin-inline:auto;
+
+}
+
+.hero-btn{
+
+margin:auto;
+
+}
+
+.hero-image{
+
+margin-top:2rem;
+
+}
+
+}
+
+/* ===========================
+SMART TV
+=========================== */
+
+@media(min-width:1800px){
+
+.hero-layout{
+
+min-height:85vh;
+
+}
+
+.hero-image img{
+
+max-width:850px;
+
+}
+
+}
+
+@media(max-width:197px){
+
+.hero-title{
+
+font-size:1.1rem;
+
+line-height:1.25;
+
+}
+
+.hero-subtitle{
+
+font-size:.6rem;
+
+}
+
+.hero-description{
+
+font-size:.68rem;
+
+line-height:1.6;
+
+margin-top:1rem;
+
+margin-bottom:1.2rem;
+
+}
+
+}

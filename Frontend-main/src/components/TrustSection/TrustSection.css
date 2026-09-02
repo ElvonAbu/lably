@@ -1,0 +1,120 @@
+.trust-section{
+
+    padding-block:clamp(5rem,8vw,8rem);
+
+    background:var(--background);
+
+}
+
+.trust-image{
+
+    display:flex;
+
+    justify-content:center;
+
+    margin-bottom:clamp(2rem,4vw,4rem);
+
+}
+
+.trust-image img{
+
+    width:min(100%,950px);
+
+    height:auto;
+
+    display:block;
+
+    transition:
+        transform var(--transition);
+
+}
+
+.trust-image img:hover{
+
+    transform:scale(1.015);
+
+}
+
+.trust-content{
+
+    max-width:820px;
+
+    margin-inline:auto;
+
+}
+
+.trust-content h2{
+
+    color:var(--text);
+
+    font-size:clamp(1.4rem,1.2rem + 3vw,3.2rem);
+
+    line-height:1.2;
+
+    margin-bottom:1.8rem;
+
+    font-weight:700;
+
+    word-break:break-word;
+
+}
+
+.trust-content p{
+
+    color:var(--text-light);
+
+    font-size:clamp(.85rem,.8rem + .4vw,1.15rem);
+
+    line-height:2;
+
+    word-break:break-word;
+
+}
+
+@media(max-width:768px){
+
+.trust-content{
+
+text-align:center;
+
+}
+
+}
+
+@media(min-width:1800px){
+
+.trust-image img{
+
+max-width:1200px;
+
+}
+
+}
+
+/* SMART WATCH */
+
+@media(max-width:197px){
+
+.trust-section{
+
+padding-block:2rem;
+
+}
+
+.trust-content h2{
+
+font-size:1rem;
+
+margin-bottom:.8rem;
+
+}
+
+.trust-content p{
+
+font-size:.68rem;
+
+line-height:1.6;
+
+}
+
+}

@@ -1,0 +1,595 @@
+.navbar{
+
+    width:100%;
+
+    background:var(--surface);
+
+    position:sticky;
+
+    top:0;
+
+    z-index:5000;
+
+}
+
+
+
+.navbar-container{
+
+    width:min(92%,var(--container-width));
+
+    margin:auto;
+
+    height:clamp(75px,8vw,95px);
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:space-between;
+
+}
+
+
+
+/* ==========================
+LOGO
+========================== */
+
+
+.navbar-logo{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:clamp(.7rem,1vw,1rem);
+
+    min-width:0;
+
+    transition:var(--transition);
+
+}
+
+.navbar-logo:hover{
+
+    transform:scale(1.04);
+}
+
+
+
+.navbar-logo-icon{
+
+    position:relative;
+
+    width:clamp(28px,3vw,45px);
+
+    aspect-ratio:1;
+
+    flex-shrink:0;
+
+}
+
+
+
+.logo-circle{
+
+    position:absolute;
+
+    width:30%;
+
+    aspect-ratio:1;
+
+    border-radius:50%;
+
+}
+
+
+
+.circle-one{
+
+    background:var(--primary);
+
+    top:0;
+
+    left:35%;
+
+}
+
+
+
+.circle-two{
+
+    background:var(--secondary);
+
+    left:0;
+
+    top:35%;
+
+}
+
+
+
+.circle-three{
+
+    background:var(--primary);
+
+    right:0;
+
+    top:35%;
+
+}
+
+
+
+.circle-four{
+
+    background:var(--secondary);
+
+    bottom:0;
+
+    left:35%;
+
+}
+
+
+
+
+.navbar-logo-text{
+
+    display:flex;
+
+    font-size:clamp(1rem,2vw,1.8rem);
+
+    font-weight:700;
+
+    letter-spacing:.5px;
+
+    white-space:nowrap;
+
+}
+
+
+.logo-lab{
+
+    color:var(--primary);
+
+}
+
+
+
+
+/*==========================
+DESKTOP LINKS
+========================== */
+
+
+.navbar-links{
+
+    display:flex;
+
+    align-items:center;
+
+    gap:clamp(2rem,4vw,4rem);
+
+}
+
+
+
+.navbar-links a{
+
+    position:relative;
+
+    color:var(--text);
+
+    font-size:clamp(.9rem,1.2vw,1.05rem);
+
+    font-weight:500;
+
+    transition:var(--transition);
+
+}
+
+
+
+.navbar-links a::after{
+
+    content:"";
+
+    position:absolute;
+
+    left:0;
+
+    bottom:-8px;
+
+    width:0;
+
+    height:3px;
+
+    background:var(--primary);
+
+    transition:var(--transition);
+
+}
+
+
+
+.navbar-links a:hover{
+
+    color:var(--primary);
+
+}
+
+
+
+.navbar-links a:hover::after{
+
+    width:100%;
+
+}
+
+
+
+/* keyboard accessibility */
+
+.navbar-links a:focus-visible,
+.navbar-btn:focus-visible,
+.navbar-toggle:focus-visible{
+
+    outline:3px solid var(--secondary);
+
+    outline-offset:5px;
+
+}
+
+/* ==========================
+CENTERED LINKS — pages without the Get Started button
+========================== */
+
+.navbar-container--no-cta{
+
+    display:grid;
+
+    grid-template-columns:auto 1fr auto;
+
+    gap:1rem;
+
+}
+
+.navbar-container--no-cta .navbar-logo{
+
+    grid-column:1;
+
+}
+
+.navbar-container--no-cta .navbar-links{
+
+    grid-column:2;
+
+    justify-content:center;
+
+}
+
+.navbar-container--no-cta .navbar-toggle{
+
+    grid-column:3;
+
+}
+
+
+
+
+
+/*==========================
+BUTTON
+========================== */
+
+
+.navbar-btn,
+.navbar-mobile-btn{
+
+    border:none;
+
+    background:var(--primary);
+
+    color:white;
+
+    border-radius:999px;
+
+    min-height:clamp(40px,7vw,56px);
+
+    font-weight:600;
+
+    cursor:pointer;
+
+    transition:
+
+    transform var(--transition),
+    background var(--transition),
+    box-shadow var(--transition);
+
+}
+
+
+
+.navbar-btn{
+
+    padding:
+
+    clamp(.8rem,1vw,1rem)
+
+    clamp(1.8rem,3vw,2.5rem);
+
+}
+
+
+
+.navbar-btn:hover,
+.navbar-mobile-btn:hover{
+
+    background:var(--primary-hover);
+
+    transform:scale(1.06);
+
+    box-shadow:var(--shadow-medium);
+
+}
+
+
+
+
+/* ==========================
+MOBILE MENU BUTTON
+========================== */
+
+
+.navbar-toggle{
+
+    display:none;
+
+    background:none;
+
+    border:none;
+
+    cursor:pointer;
+
+    flex-shrink:0;
+
+}
+
+
+
+.navbar-toggle span{
+
+    display:block;
+
+    width:clamp(20px,6vw,28px);
+
+    height:3px;
+
+    margin:4px;
+
+    background:var(--text);
+
+    border-radius:10px;
+
+}
+/* ==========================
+HAMBURGER → X ANIMATION
+========================== */
+
+.navbar-toggle span{
+
+    transition:transform .3s ease, opacity .3s ease;
+
+}
+
+.navbar-toggle.active span:nth-child(1){
+
+    transform:translateY(9px) rotate(45deg);
+
+}
+
+.navbar-toggle.active span:nth-child(2){
+
+    opacity:0;
+
+}
+
+.navbar-toggle.active span:nth-child(3){
+
+    transform:translateY(-9px) rotate(-45deg);
+
+}
+
+
+/* hidden mobile button */
+
+.navbar-mobile-btn{
+
+    display:none;
+
+}
+
+
+
+
+
+/* ==========================
+TABLET + MOBILE
+========================== */
+
+
+@media(max-width:900px){
+
+
+    .navbar-container{
+
+        height:clamp(60px,12vw,75px);
+
+    }
+
+
+
+    .navbar-btn{
+
+        display:none;
+
+    }
+
+
+
+    .navbar-toggle{
+
+        display:block;
+
+    }
+
+
+
+    .navbar-links{
+
+        position:absolute;
+
+        top:100%;
+
+        left:0;
+
+        width:100%;
+
+        max-height:calc(100dvh - 100%);
+
+        overflow-y:auto;
+
+        overscroll-behavior:contain;
+
+        -webkit-overflow-scrolling:touch;
+
+        background:white;
+
+        flex-direction:column;
+
+        align-items:flex-start;
+
+        padding:clamp(1.2rem,4vw,2rem);
+
+        gap:clamp(1.2rem,4vw,2rem);
+
+        transform:translateY(-120%);
+
+        opacity:0;
+
+        pointer-events:none;
+
+        transition:.3s ease;
+
+        box-shadow:var(--shadow-medium);
+
+        box-sizing:border-box;
+
+    }
+
+
+
+    .navbar-links.active{
+
+        transform:translateY(0);
+
+        opacity:1;
+
+        pointer-events:auto;
+
+    }
+
+
+
+    .navbar-mobile-btn{
+
+        display:block;
+
+        padding:1rem 2rem;
+
+        width:100%;
+
+    }
+
+
+}
+
+
+
+/* SMART WATCH — extra tight space */
+
+@media(max-width:197px){
+
+.navbar-container{
+
+height:52px;
+
+}
+
+.navbar-logo-text{
+
+font-size:.8rem;
+
+}
+
+.navbar-toggle span{
+
+width:16px;
+
+margin:3px;
+
+}
+
+.navbar-links{
+
+padding:.8rem;
+
+gap:.8rem;
+
+max-height:calc(100dvh - 52px);
+
+}
+
+.navbar-links a{
+
+font-size:.8rem;
+
+}
+
+.navbar-mobile-btn{
+
+padding:.6rem 1rem;
+
+font-size:.75rem;
+
+}
+
+}
+
+
+
+/* LARGE TV SUPPORT */
+
+
+@media(min-width:1800px){
+
+
+    .navbar-container{
+
+        height:120px;
+
+    }
+
+
+
+    .navbar-links a{
+
+        font-size:1.4rem;
+
+    }
+
+
+
+}
