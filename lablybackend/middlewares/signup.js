@@ -53,7 +53,7 @@ const resend = new Resend(
 );
 
 
-const welcomeemail=async(useremail)=>{
+export const welcomeemail=async(useremail)=>{
    const {data,error}= await resend.emails.send({
 
       from:
