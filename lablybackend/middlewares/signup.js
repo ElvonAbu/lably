@@ -53,6 +53,26 @@ const resend = new Resend(
 );
 
 
+const welcomeemail=async(useremail)=>{
+   const {data,error}= await resend.emails.send({
+
+      from:
+        "Lably <onboarding@mylably.com>",
+
+      to: [useremail],
+
+      subject:
+        "Welcome New User",
+
+      html: `
+
+        <h2>Welcome to Lably!</h2>
+
+      `
+
+    }); 
+  
+}
 /*
 |--------------------------------------------------------------------------
 | NORMALIZE EMAIL
