@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 
 import Otpmodel from "../models/otpmodel.js";
 import Users from "../models/signup.js";
+import welcomemail from "../middlewares/signup.js"
 
 dotenv.config();
 
@@ -247,6 +248,7 @@ export default async function VerifyOTP(
         otpRecord._id,
     });
 
+    await welcomemail(normalizedEmail);
 
     /*
     |--------------------------------------------------------------------------
