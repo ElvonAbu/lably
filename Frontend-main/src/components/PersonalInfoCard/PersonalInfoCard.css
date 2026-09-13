@@ -1,0 +1,204 @@
+.personal-info-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(20,12,36,.45);
+  -webkit-backdrop-filter:blur(4px);
+  backdrop-filter:blur(4px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:1.2rem;
+  box-sizing:border-box;
+  z-index:99999;
+}
+
+/* Outer shape only — this is what owns the border-radius, and it clips
+   its inner scroll area so the corner is never cut by a scrollbar. */
+.personal-info-card{
+  position:relative;
+  z-index:100000;
+  width:min(94vw,500px);
+  max-height:calc(100vh - 2.4rem);
+  background:var(--surface);
+  border-radius:var(--radius-medium);
+  box-shadow:0 24px 60px rgba(20,12,36,.25);
+  box-sizing:border-box;
+  overflow:hidden;
+  animation:personalInfoIn .25s ease;
+}
+
+@keyframes personalInfoIn{
+  from{opacity:0; transform:translateY(10px) scale(.98);}
+  to{opacity:1; transform:translateY(0) scale(1);}
+}
+
+/* Inner scroll area — owns the scrollbar and the padding, no radius of its own */
+.personal-info-card-inner{
+  max-height:calc(100vh - 2.4rem);
+  overflow-y:auto;
+  padding:clamp(1.8rem,4vw,2.6rem);
+  box-sizing:border-box;
+  text-align:left;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(120,110,140,.35) transparent;
+}
+.personal-info-card-inner::-webkit-scrollbar{ width:5px; }
+.personal-info-card-inner::-webkit-scrollbar-track{ background:transparent; }
+.personal-info-card-inner::-webkit-scrollbar-thumb{
+  background:rgba(120,110,140,.35);
+  border-radius:999px;
+}
+.personal-info-card-inner::-webkit-scrollbar-thumb:hover{
+  background:rgba(120,110,140,.55);
+}
+
+.personal-info-title{
+  font-size:clamp(1.25rem,3vw,1.6rem);
+  font-weight:700;
+  color:var(--text);
+  text-align:center;
+  margin:0 0 .5rem;
+}
+
+.personal-info-subtitle{
+  font-size:clamp(.82rem,.3vw + .76rem,.94rem);
+  color:var(--text-light);
+  text-align:center;
+  line-height:1.5;
+  margin:0 0 clamp(1.4rem,3vw,2rem);
+}
+
+.personal-info-field{
+  margin-bottom:1.1rem;
+}
+
+.personal-info-label{
+  display:block;
+  font-size:clamp(.78rem,.3vw + .72rem,.9rem);
+  font-weight:600;
+  color:var(--text);
+  margin-bottom:.5rem;
+}
+
+.personal-info-input,
+.personal-info-select,
+.personal-info-textarea{
+  width:100%;
+  box-sizing:border-box;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:.85rem 1rem;
+  font-family:inherit;
+  font-size:clamp(.85rem,.3vw + .8rem,1rem);
+  color:var(--text);
+  background:var(--background);
+  transition:var(--transition);
+}
+
+.personal-info-input:focus,
+.personal-info-select:focus,
+.personal-info-textarea:focus{
+  outline:none;
+  border-color:var(--primary);
+  box-shadow:0 0 0 4px rgba(123,46,255,.12);
+}
+
+.personal-info-textarea{
+  resize:vertical;
+  min-height:60px;
+}
+
+.personal-info-dob-row{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:.6rem;
+}
+
+.personal-info-select-full{
+  width:100%;
+}
+
+.personal-info-notice{
+  display:flex;
+  align-items:flex-start;
+  gap:.6rem;
+  background:#F3EEFC;
+  color:#5B1FB0;
+  border-radius:14px;
+  padding:.9rem 1rem;
+  font-size:clamp(.74rem,.3vw + .68rem,.85rem);
+  line-height:1.5;
+  margin:.4rem 0 1.6rem;
+}
+
+.personal-info-notice-icon{
+  flex-shrink:0;
+}
+
+.personal-info-next{
+  width:100%;
+}
+
+
+
+/* ===== MOBILE: shorter, tighter card so it actually fits the screen ===== */
+@media(max-width:640px){
+  .personal-info-overlay{
+    padding:.7rem;
+    align-items:flex-end;
+  }
+
+  .personal-info-card,
+  .personal-info-card-inner{
+    max-height:min(64vh, 520px);
+  }
+
+  .personal-info-card-inner{
+    padding:1.2rem 1.2rem 1.4rem;
+  }
+
+  .personal-info-title{
+    font-size:1.1rem;
+    margin-bottom:.3rem;
+  }
+
+  .personal-info-subtitle{
+    font-size:.8rem;
+    margin-bottom:1rem;
+  }
+
+  .personal-info-field{
+    margin-bottom:.7rem;
+  }
+
+  .personal-info-label{
+    font-size:.78rem;
+    margin-bottom:.35rem;
+  }
+
+  .personal-info-input,
+  .personal-info-select,
+  .personal-info-textarea{
+    padding:.6rem .8rem;
+  }
+
+  .personal-info-textarea{
+    min-height:40px;
+  }
+
+  .personal-info-notice{
+    padding:.7rem .8rem;
+    margin:.3rem 0 1rem;
+  }
+}
+
+@media(max-width:197px){
+  .personal-info-card-inner{padding:.8rem;}
+  .personal-info-title{font-size:.85rem;}
+  .personal-info-subtitle{font-size:.58rem; margin-bottom:.8rem;}
+  .personal-info-label{font-size:.6rem;}
+  .personal-info-input,
+  .personal-info-select,
+  .personal-info-textarea{font-size:.6rem; padding:.5rem .6rem;}
+  .personal-info-notice{font-size:.55rem; padding:.5rem .6rem;}
+}

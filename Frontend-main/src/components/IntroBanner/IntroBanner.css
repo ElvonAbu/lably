@@ -1,0 +1,87 @@
+.intro-section{
+
+    position:relative;
+
+    margin-top:clamp(-5rem,-6vw,-4rem);
+
+    z-index:20;
+
+}
+
+.intro-card{
+
+    margin-top:clamp(2rem,3vw,4rem);
+
+    background:var(--surface);
+
+    border-radius:var(--radius-large);
+
+    box-shadow:var(--shadow-medium);
+
+    padding:clamp(1.5rem,2vw + 1rem,4rem);
+
+    transition:
+    transform var(--transition),
+    box-shadow var(--transition);
+
+}
+
+.intro-card:hover{
+
+    transform:translateY(-4px);
+
+    box-shadow:var(--shadow-large);
+
+}
+
+.intro-text{
+
+    text-align:center;
+
+    color:var(--text-light);
+
+    font-size:clamp(.95rem,.8rem + .5vw,1.5rem);
+
+    line-height:2;
+
+    max-width:900px;
+
+    margin:auto;
+
+
+    word-break:break-word;
+
+
+}
+
+/* Tablet — structural (negative margin needs to shrink) */
+
+@media(max-width:768px){
+
+.intro-section{
+
+margin-top:-2rem;
+
+}
+
+}
+
+@media(max-width:197px){
+
+.intro-card{
+
+padding:.8rem;
+
+margin-top:.8rem;
+
+}
+
+.intro-text{
+
+font-size:.65rem;
+
+line-height:1.6;
+
+}
+
+}

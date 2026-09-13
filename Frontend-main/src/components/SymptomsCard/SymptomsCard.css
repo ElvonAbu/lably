@@ -1,0 +1,129 @@
+.symptoms-overlay{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  z-index:99999;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  background:rgba(20,12,36,.45);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+}
+
+.symptoms-sheet{
+  position:relative;
+  width:100%;
+  max-width:640px;
+  max-height:82vh;
+  background:var(--surface,#fff);
+  border-radius:28px 28px 0 0;
+  box-shadow:0 24px 60px rgba(20,12,36,.25);
+  display:flex;
+  flex-direction:column;
+  animation:symptomsSheetUp .3s cubic-bezier(.32,.72,0,1);
+  box-sizing:border-box;
+}
+
+@keyframes symptomsSheetUp{
+  from{ transform:translateY(100%); }
+  to{ transform:translateY(0); }
+}
+
+.symptoms-sheet-drag-zone{
+  display:flex;
+  justify-content:center;
+  padding:.9rem 0 1rem;
+  touch-action:none;
+  cursor:grab;
+  flex-shrink:0;
+}
+
+.symptoms-sheet-handle{
+  width:44px;
+  height:5px;
+  border-radius:999px;
+  background:var(--border,#E4DEF0);
+  pointer-events:none;
+}
+
+.symptoms-sheet-body{
+  overflow-y:auto;
+  padding:0 clamp(1.2rem,4vw,2rem) clamp(1.2rem,4vw,2rem);
+}
+
+.symptoms-title{ font-size:clamp(1.2rem,3vw,1.5rem); font-weight:700; color:#1F1147; margin:0 0 1.4rem; text-align:center; }
+
+.symptoms-grid{ display:grid; grid-template-columns:1fr 1fr; gap:0 1.5rem; margin-bottom:1.6rem; }
+@media (max-width:520px){ .symptoms-grid{ grid-template-columns:1fr; } }
+
+.symptoms-option{ display:flex; align-items:center; gap:.7rem; padding:.6rem 0; cursor:pointer; }
+.symptoms-option input{ position:absolute; opacity:0; pointer-events:none; }
+
+.symptoms-check-dot{
+  width:22px; height:22px; flex:0 0 auto; border-radius:50%;
+  background:#E4DEF0; display:flex; align-items:center; justify-content:center;
+}
+.symptoms-option-active .symptoms-check-dot{ background:#7A11F1; }
+
+.symptoms-label{ font-size:.98rem; color:#2B2140; }
+
+.symptoms-hint{
+  text-align:center; background:#F3EEFC; color:#7A11F1; font-weight:600;
+  font-size:.88rem; border-radius:14px; padding:.9rem 1rem; margin-bottom:1.4rem;
+}
+
+.symptoms-submit{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:.6rem;
+  width:auto;
+  min-width:220px;
+  margin:0 auto;
+}
+
+/* ===== DESKTOP: narrow centered card + slim scrollbar, matching the reference ===== */
+@media(min-width:641px){
+  .symptoms-overlay{
+    align-items:center;
+    padding:1.2rem;
+    box-sizing:border-box;
+  }
+
+  .symptoms-sheet{
+    width:min(92vw,440px);
+    max-height:min(80vh,620px);
+    border-radius:28px;
+    animation:symptomsCardIn .25s ease;
+  }
+
+  .symptoms-sheet-drag-zone{
+    display:none;
+  }
+
+  .symptoms-sheet-body{
+    padding:clamp(1.2rem,4vw,2rem);
+    scrollbar-width:thin;
+    scrollbar-color:rgba(120,110,140,.35) transparent;
+  }
+  .symptoms-sheet-body::-webkit-scrollbar{
+    width:5px;
+  }
+  .symptoms-sheet-body::-webkit-scrollbar-track{
+    background:transparent;
+  }
+  .symptoms-sheet-body::-webkit-scrollbar-thumb{
+    background:rgba(120,110,140,.35);
+    border-radius:999px;
+  }
+  .symptoms-sheet-body::-webkit-scrollbar-thumb:hover{
+    background:rgba(120,110,140,.55);
+  }
+
+  @keyframes symptomsCardIn{
+    from{ opacity:0; transform:translateY(10px) scale(.98); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+}
