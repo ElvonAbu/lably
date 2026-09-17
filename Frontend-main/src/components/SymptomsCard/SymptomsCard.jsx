@@ -4,13 +4,13 @@ import { useSheetDrag } from "../../hooks/useSheetDrag";
 import "./SymptomsCard.css";
 
 const LEFT_SYMPTOMS = [
-  "Headache", "Vomiting", "Coughing", "Nausea",
-  "Discharge", "Fever or Chills", "Fatigue or weakness", "Jaundice",
+  "Headache", "Vomiting", "Nausea",
+  " Unusual Vaginal/Genital Discharge", "Fever or Chills", "Fatigue or weakness", "Jaundice",
 ];
 
 const RIGHT_SYMPTOMS = [
-  "Missed menstrual cycle", "Irregular periods", "Body aches", "Night sweats",
-  "Persistent sweating", "Numbness or tingling", "Burning during urination", "Frequent urination",
+  "Missed menstrual cycle", "Body aches",
+   "Numbness or tingling", "Frequent urination"
 ];
 
 function SymptomsCard({ onGetTested, onClose }) {

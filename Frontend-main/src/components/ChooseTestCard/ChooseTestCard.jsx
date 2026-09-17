@@ -4,13 +4,13 @@ import { useSheetDrag } from "../../hooks/useSheetDrag";
 import "./ChooseTestCard.css";
 
 const LEFT_TESTS = [
-  "Complete blood health check", "Anaemia Check", "Fasting Diabetes Check",
-  "Quick Blood Sugar Check", "Malaria Check", "HIV Screening Test",
+  "Complete blood health check", "Anaemia Check", "Pregnancy Test",
+  "Quick Blood Sugar Check", "Malaria Check", "HIV Screening Test"
 ];
 
 const RIGHT_TESTS = [
   "Hepatitis B Check", "Hepatitis C Check", "Syphilis Screening Test",
-  "Typhoid/Enteric Fever Assessment", "Urine Health Check", "Liver Health Check",
+  "Sexually Transmitted Infection Test"
 ];
 
 function ChooseTestCard({ onGetTested, onClose, initialSelected = [] }) {
