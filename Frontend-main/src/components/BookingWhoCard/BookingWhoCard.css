@@ -1,0 +1,140 @@
+.booking-who-overlay{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:1.2rem;
+  background:rgba(20,12,36,.45);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  z-index:99999;
+  box-sizing:border-box;
+}
+
+.booking-who-card{
+  position:relative;
+  z-index:100000;
+  width:min(92vw,440px);
+  max-height:min(80vh,620px);
+  overflow-y:auto;
+  background:var(--surface,#fff);
+  border-radius:28px;
+  padding:clamp(1.8rem,4vw,2.6rem);
+  text-align:center;
+  box-shadow:0 24px 60px rgba(20,12,36,.25);
+  box-sizing:border-box;
+  animation:bookingWhoIn .25s ease;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(120,110,140,.35) transparent;
+}
+.booking-who-card::-webkit-scrollbar{ width:5px; }
+.booking-who-card::-webkit-scrollbar-track{ background:transparent; }
+.booking-who-card::-webkit-scrollbar-thumb{
+  background:rgba(120,110,140,.35);
+  border-radius:999px;
+}
+.booking-who-card::-webkit-scrollbar-thumb:hover{
+  background:rgba(120,110,140,.55);
+}
+
+@keyframes bookingWhoIn{
+  from{ opacity:0; transform:translateY(10px) scale(.98); }
+  to{ opacity:1; transform:translateY(0) scale(1); }
+}
+
+.booking-who-illustration{
+  width:clamp(150px,32vw,210px);
+  margin:0 auto clamp(1rem,2vw,1.4rem);
+  display:block;
+}
+
+.booking-who-title{
+  font-size:clamp(1.2rem,3vw,1.5rem);
+  font-weight:700;
+  color:#1F1147;
+  margin:0 0 .5rem;
+}
+
+.booking-who-subtitle{
+  color:var(--text-light);
+  font-size:clamp(.85rem,.3vw + .8rem,1rem);
+  line-height:1.5;
+  margin-bottom:clamp(1.4rem,2.5vw,1.8rem);
+}
+
+.booking-who-options{
+  display:flex;
+  flex-direction:column;
+  border-radius:18px;
+  overflow:hidden;
+  background:#FBFAFD;
+  margin-bottom:1.8rem;
+  text-align:left;
+}
+
+.booking-who-option{
+  display:flex;
+  align-items:center;
+  gap:.9rem;
+  padding:1rem 1.1rem;
+  cursor:pointer;
+  border-bottom:1px solid #F1EEF7;
+  transition:background .15s ease;
+}
+
+.booking-who-option:last-child{
+  border-bottom:none;
+}
+
+.booking-who-option:hover{
+  background:#F0EAFA;
+}
+
+.booking-who-option input{
+  position:absolute;
+  opacity:0;
+  width:0;
+  height:0;
+}
+
+.booking-who-radio-dot{
+  width:24px;
+  height:24px;
+  flex:0 0 auto;
+  border-radius:50%;
+  background:#E4DEF0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:background .15s ease;
+}
+
+.booking-who-option-active .booking-who-radio-dot{
+  background:#7A11F1;
+}
+
+.booking-who-label{
+  font-size:1rem;
+  color:#2B2140;
+  font-weight:500;
+}
+
+.booking-who-next{
+  display:inline-flex;
+  width:auto;
+  min-width:200px;
+  margin:0 auto;
+}
+
+@media(max-width:197px){
+  .booking-who-card{padding:.7rem;}
+  .booking-who-illustration{width:90px; margin-bottom:.6rem;}
+  .booking-who-title{font-size:.85rem;}
+  .booking-who-subtitle{font-size:.6rem; margin-bottom:.8rem;}
+  .booking-who-option{padding:.5rem .2rem; gap:.5rem;}
+  .booking-who-radio-dot{width:18px; height:18px;}
+  .booking-who-label{font-size:.62rem;}
+}

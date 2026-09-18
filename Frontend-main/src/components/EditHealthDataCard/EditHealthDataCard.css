@@ -1,0 +1,109 @@
+.edit-health-overlay{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:1.2rem;
+  background:rgba(20,12,36,.45);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  z-index:99999;
+  box-sizing:border-box;
+}
+
+.edit-health-card{
+  position:relative;
+  z-index:100000;
+  width:min(92vw,440px);
+  max-height:min(80vh,620px);
+  overflow-y:auto;
+  background:var(--surface,#fff);
+  border-radius:28px;
+  padding:clamp(1.8rem,4vw,2.6rem);
+  text-align:center;
+  box-shadow:0 24px 60px rgba(20,12,36,.25);
+  box-sizing:border-box;
+  animation:editHealthIn .25s ease;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(120,110,140,.35) transparent;
+}
+.edit-health-card::-webkit-scrollbar{ width:5px; }
+.edit-health-card::-webkit-scrollbar-track{ background:transparent; }
+.edit-health-card::-webkit-scrollbar-thumb{
+  background:rgba(120,110,140,.35);
+  border-radius:999px;
+}
+.edit-health-card::-webkit-scrollbar-thumb:hover{
+  background:rgba(120,110,140,.55);
+}
+
+@keyframes editHealthIn{
+  from{ opacity:0; transform:translateY(10px) scale(.98); }
+  to{ opacity:1; transform:translateY(0) scale(1); }
+}
+
+.edit-health-illustration{
+  width:clamp(150px,32vw,210px);
+  margin:0 auto clamp(1rem,2vw,1.4rem);
+  display:block;
+}
+
+.edit-health-title{
+  font-size:clamp(1.2rem,3vw,1.5rem);
+  font-weight:700;
+  color:#1F1147;
+  margin:0 0 .5rem;
+  line-height:1.35;
+}
+
+.edit-health-subtitle{
+  color:var(--text-light);
+  font-size:clamp(.85rem,.3vw + .8rem,1rem);
+  line-height:1.5;
+  margin-bottom:clamp(1.6rem,3vw,2.2rem);
+}
+
+.edit-health-actions{
+  display:flex;
+  gap:.9rem;
+}
+
+.edit-health-btn{
+  flex:1;
+  border:none;
+  border-radius:999px;
+  padding:.9rem 1rem;
+  font-family:inherit;
+  font-size:.98rem;
+  font-weight:700;
+  cursor:pointer;
+  transition:background .15s ease, transform .15s ease;
+}
+
+.edit-health-btn-outline{
+  background:#F3EEFC;
+  color:#7A11F1;
+}
+.edit-health-btn-outline:hover{
+  background:#E7DBFA;
+}
+
+.edit-health-btn-primary{
+  background:#7A11F1;
+  color:#fff;
+}
+.edit-health-btn-primary:hover{
+  background:var(--primary-hover,#6524DF);
+  transform:translateY(-1px);
+}
+
+@media(max-width:197px){
+  .edit-health-card{padding:.7rem;}
+  .edit-health-illustration{width:90px; margin-bottom:.6rem;}
+  .edit-health-title{font-size:.8rem;}
+  .edit-health-subtitle{font-size:.6rem; margin-bottom:.8rem;}
+  .edit-health-btn{font-size:.62rem; padding:.5rem .6rem;}
+}

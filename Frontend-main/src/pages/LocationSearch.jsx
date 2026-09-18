@@ -1,5 +1,7 @@
 import "./LocationSearch.css";
 
+import BookingWhoCard from "../components/BookingWhoCard/BookingWhoCard";
+import EditHealthDataCard from "../components/EditHealthDataCard/EditHealthDataCard";
 import ChooseTestCard from "../components/ChooseTestCard/ChooseTestCard";
 import TestPackageCard from "../components/TestPackageCard/TestPackageCard";
 import SymptomsCard from "../components/SymptomsCard/SymptomsCard";
@@ -32,6 +34,14 @@ const FALLBACK_CENTER = {
 const SAVED_ADDRESSES_KEY = "lably_saved_addresses";
 const MAX_SAVED_ADDRESSES = 10;
 
+/*
+ * Persisted "myself" profile — separate from the saved
+ * addresses. This is what lets LocationSearch know, the
+ * next time the user books for themselves, whether there's
+ * existing health data to offer editing (or skipping).
+ */
+const MYSELF_INFO_KEY = "lably_myself_info";
+
 /* ==================================================
    SESSION TOKEN
 ================================================== */
@@ -53,6 +63,19 @@ function loadSavedAddresses() {
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
+  }
+}
+
+/* ==================================================
+   LOAD MYSELF INFO
+================================================== */
+
+function loadMyselfInfo() {
+  try {
+    const raw = localStorage.getItem(MYSELF_INFO_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
   }
 }
 
@@ -126,6 +149,10 @@ function LocationSearch() {
      - TestPackageCard       ("testpackage")
      - PersonalInfoCard      ("personalinfo")
      - RequestStatusCard     ("requeststatus")
+
+     (BookingWhoCard and EditHealthDataCard are their own
+     booleans, same pattern as showTestChoice below — they
+     sit "before" activeOverlay in the flow.)
   ================================================== */
 
   const [activeOverlay, setActiveOverlay] = useState(null);
@@ -140,8 +167,25 @@ function LocationSearch() {
   const [requestOrigin, setRequestOrigin] = useState(null);
 
   /*
+   * Who this request is for. Determines: whether we check
+   * for an existing saved profile (myself only), and the
+   * wording PersonalInfoCard shows ("your" vs "their").
+   */
+
+  const [bookingFor, setBookingFor] = useState(null);
+
+  /*
+   * The user's own saved profile, persisted across visits —
+   * separate from `personalInfo` below, which is just
+   * whatever is currently filled in for THIS request
+   * (could be the user's own info, or someone else's).
+   */
+
+  const [myselfInfo, setMyselfInfo] = useState(() => loadMyselfInfo());
+
+  /*
    * Selected tests from ChooseTestCard, and the personal
-   * details from PersonalInfoCard — both need to survive
+   * details for the current request — both need to survive
    * closing/reopening those cards (e.g. "Add test" from
    * RequestStatusCard reopens ChooseTestCard, and it
    * should come back with whatever was already picked).
@@ -154,6 +198,8 @@ function LocationSearch() {
     useState(false);
 
   const [showTestChoice, setShowTestChoice] = useState(false);
+  const [showBookingWho, setShowBookingWho] = useState(false);
+  const [showEditCheck, setShowEditCheck] = useState(false);
 
   /*
    * Whenever any part of the post-"Get Tested" flow is
@@ -162,7 +208,11 @@ function LocationSearch() {
    * "pick a location" phase, not what comes after.
    */
 
-  const isInFlow = showTestChoice || activeOverlay !== null;
+  const isInFlow =
+    showTestChoice ||
+    showBookingWho ||
+    showEditCheck ||
+    activeOverlay !== null;
 
   /* ==================================================
      SAVED ADDRESSES
@@ -503,6 +553,10 @@ function LocationSearch() {
 
   /* ==================================================
      GET TESTED
+
+     Kicks off the new flow: instead of jumping straight to
+     "how would you like to proceed", we now first ask WHO
+     the request is for.
   ================================================== */
 
   const handleGetTested = async () => {
@@ -518,6 +572,82 @@ function LocationSearch() {
       console.warn("LABLY save location failed:", error);
     }
 
+    setShowBookingWho(true);
+  };
+
+  /* ==================================================
+     BOOKING WHO → NEXT
+
+     - "Myself" + an existing saved profile → ask whether
+       to edit it or continue with what's on file.
+     - "Myself" + no saved profile yet → nothing to offer
+       editing, so go straight to the form.
+     - "Someone else" → always straight to the form (blank,
+       unless they'd already started filling it earlier in
+       this same request).
+  ================================================== */
+
+  const handleBookingWhoNext = (choice) => {
+    setShowBookingWho(false);
+    setBookingFor(choice);
+
+    if (choice === "myself") {
+      if (myselfInfo) {
+        setShowEditCheck(true);
+      } else {
+        setActiveOverlay("personalinfo");
+      }
+      return;
+    }
+
+    setActiveOverlay("personalinfo");
+  };
+
+  /* ==================================================
+     EDIT HEALTH DATA CHOICE
+
+     "Edit"     → open the form, pre-filled with the saved profile.
+     "Continue" → skip the form entirely, reuse the saved profile
+                  as-is, and go straight to "how would you like
+                  to proceed".
+  ================================================== */
+
+  const handleEditHealthChoice = (action) => {
+    setShowEditCheck(false);
+
+    if (action === "edit") {
+      setPersonalInfo(myselfInfo);
+      setActiveOverlay("personalinfo");
+      return;
+    }
+
+    setPersonalInfo(myselfInfo);
+    setShowTestChoice(true);
+  };
+
+  /* ==================================================
+     PERSONAL INFO → NEXT
+
+     Now runs BEFORE "how would you like to proceed", so it
+     leads into TestChoiceCard instead of RequestStatusCard.
+     When booking for themselves, this is also where the
+     saved "myself" profile gets written/updated.
+  ================================================== */
+
+  const handlePersonalInfoNext = (data) => {
+    setPersonalInfo(data);
+
+    if (bookingFor === "myself") {
+      setMyselfInfo(data);
+
+      try {
+        localStorage.setItem(MYSELF_INFO_KEY, JSON.stringify(data));
+      } catch (error) {
+        console.warn("LABLY failed to save personal info:", error);
+      }
+    }
+
+    setActiveOverlay(null);
     setShowTestChoice(true);
   };
 
@@ -550,15 +680,15 @@ function LocationSearch() {
   };
 
   /* ==================================================
-     ANY OF THE THREE "PROCEED" CARDS → PERSONAL INFO
+     ANY OF THE THREE "PROCEED" CARDS → REQUEST STATUS
+
+     Personal info is already collected earlier in the flow
+     now, so "Get Tested"/"Next" on these three goes straight
+     to the request-status screen instead of back to the
+     personal info form.
   ================================================== */
 
-  const handleProceedToPersonalInfo = () => {
-    setActiveOverlay("personalinfo");
-  };
-
-  const handlePersonalInfoNext = (data) => {
-    setPersonalInfo(data);
+  const handleProceedToRequestStatus = () => {
     setActiveOverlay("requeststatus");
   };
 
@@ -577,6 +707,7 @@ function LocationSearch() {
     setRequestOrigin(null);
     setSelectedTests([]);
     setPersonalInfo(null);
+    setBookingFor(null);
   };
 
   const handleConfirmChangeLocation = () => {
@@ -586,6 +717,7 @@ function LocationSearch() {
     setRequestOrigin(null);
     setSelectedTests([]);
     setPersonalInfo(null);
+    setBookingFor(null);
     setShowChangeLocationConfirm(false);
   };
 
@@ -593,13 +725,14 @@ function LocationSearch() {
      BACK BUTTON
 
      Normally goes to Home. While viewing the request
-     status screen, it should step back to the info
-     form instead of leaving the flow entirely.
+     status screen, it should step back to whichever card
+     the request started from (test / symptoms / package)
+     instead of leaving the flow entirely.
   ================================================== */
 
   const handleBack = () => {
     if (activeOverlay === "requeststatus") {
-      setActiveOverlay("personalinfo");
+      setActiveOverlay(requestOrigin || "personalinfo");
       return;
     }
 
@@ -840,6 +973,33 @@ function LocationSearch() {
       )}
 
       {/* ==================================================
+         BOOKING WHO CARD — who is this request for?
+      ================================================== */}
+
+      {showBookingWho && (
+        <BookingWhoCard
+          onNext={handleBookingWhoNext}
+          onClose={() => setShowBookingWho(false)}
+        />
+      )}
+
+      {/* ==================================================
+         EDIT HEALTH DATA CARD — only shown for "myself"
+         when a saved profile already exists.
+      ================================================== */}
+
+      {showEditCheck && (
+        <EditHealthDataCard
+          onEdit={() => handleEditHealthChoice("edit")}
+          onContinue={() => handleEditHealthChoice("continue")}
+          onClose={() => {
+            setShowEditCheck(false);
+            setBookingFor(null);
+          }}
+        />
+      )}
+
+      {/* ==================================================
          TEST CHOICE CARD
       ================================================== */}
 
@@ -857,10 +1017,11 @@ function LocationSearch() {
       {activeOverlay === "test" && (
         <ChooseTestCard
           initialSelected={selectedTests}
+          gender={personalInfo?.gender}
           onGetTested={(list) => {
             console.log("LABLY: tests selected:", list);
             setSelectedTests(list);
-            handleProceedToPersonalInfo();
+            handleProceedToRequestStatus();
           }}
           onClose={() => setActiveOverlay(null)}
         />
@@ -872,9 +1033,10 @@ function LocationSearch() {
 
       {activeOverlay === "symptoms" && (
         <SymptomsCard
+          gender={personalInfo?.gender}
           onGetTested={(list) => {
             console.log("LABLY: symptoms selected:", list);
-            handleProceedToPersonalInfo();
+            handleProceedToRequestStatus();
           }}
           onClose={() => setActiveOverlay(null)}
         />
@@ -888,7 +1050,7 @@ function LocationSearch() {
         <TestPackageCard
           onNext={(pkg) => {
             console.log("LABLY: package selected:", pkg);
-            handleProceedToPersonalInfo();
+            handleProceedToRequestStatus();
           }}
           onClose={() => setActiveOverlay(null)}
         />
@@ -901,6 +1063,7 @@ function LocationSearch() {
       {activeOverlay === "personalinfo" && (
         <PersonalInfoCard
           initialValues={personalInfo}
+          bookingFor={bookingFor}
           onNext={handlePersonalInfoNext}
           onClose={() => setActiveOverlay(null)}
         />

@@ -3,44 +3,64 @@ import { Search, FlaskConical } from "lucide-react";
 import { useSheetDrag } from "../../hooks/useSheetDrag";
 import "./ChooseTestCard.css";
 
+/*
+ * Each item is tagged with which gender(s) it applies to.
+ * "all" means it shows regardless of the booked person's gender.
+ * Add more gender-specific tests here the same way as needed.
+ */
+
 const LEFT_TESTS = [
-  "Complete blood health check", "Anaemia Check", "Pregnancy Test",
-  "Quick Blood Sugar Check", "Malaria Check", "HIV Screening Test"
+  { label: "Complete blood health check", genders: ["all"] },
+  { label: "Anaemia Check", genders: ["all"] },
+  { label: "Pregnancy Test", genders: ["female"] },
+  { label: "Quick Blood Sugar Check", genders: ["all"] },
+  { label: "Malaria Check", genders: ["all"] },
+  { label: "HIV Screening Test", genders: ["all"] },
 ];
 
 const RIGHT_TESTS = [
-  "Hepatitis B Check", "Hepatitis C Check", "Syphilis Screening Test",
-  "Sexually Transmitted Infection Test"
+  { label: "Hepatitis B Check", genders: ["all"] },
+  { label: "Hepatitis C Check", genders: ["all"] },
+  { label: "Syphilis Screening Test", genders: ["all"] },
+  { label: "Sexually Transmitted Infection Test", genders: ["all"] },
 ];
 
-function ChooseTestCard({ onGetTested, onClose, initialSelected = [] }) {
+function matchesGender(item, gender) {
+  if (!item.genders || item.genders.includes("all")) return true;
+  if (!gender) return true; // no gender known yet — show everything
+  return item.genders.includes(gender.toLowerCase());
+}
+
+function ChooseTestCard({ onGetTested, onClose, initialSelected = [], gender }) {
   const [selected, setSelected] = useState(() => new Set(initialSelected));
   const sheetRef = useRef(null);
   const dragHandlers = useSheetDrag(sheetRef, onClose);
 
-  const toggle = (test) => {
+  const toggle = (label) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(test) ? next.delete(test) : next.add(test);
+      next.has(label) ? next.delete(label) : next.add(label);
       return next;
     });
   };
 
   const renderButtons = (items) =>
-    items.map((test) => (
-      <button
-        key={test}
-        type="button"
-        className={
-          selected.has(test)
-            ? "choose-test-pill choose-test-pill-active"
-            : "choose-test-pill"
-        }
-        onClick={() => toggle(test)}
-      >
-        {test}
-      </button>
-    ));
+    items
+      .filter((item) => matchesGender(item, gender))
+      .map((item) => (
+        <button
+          key={item.label}
+          type="button"
+          className={
+            selected.has(item.label)
+              ? "choose-test-pill choose-test-pill-active"
+              : "choose-test-pill"
+          }
+          onClick={() => toggle(item.label)}
+        >
+          {item.label}
+        </button>
+      ));
 
   return (
     <div className="choose-test-overlay" onClick={() => onClose?.()}>

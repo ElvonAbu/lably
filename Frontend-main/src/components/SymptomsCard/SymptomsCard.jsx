@@ -4,49 +4,64 @@ import { useSheetDrag } from "../../hooks/useSheetDrag";
 import "./SymptomsCard.css";
 
 const LEFT_SYMPTOMS = [
-  "Headache", "Vomiting", "Nausea",
-  " Unusual Vaginal/Genital Discharge", "Fever or Chills", "Fatigue or weakness", "Jaundice",
+  { label: "Headache", genders: ["all"] },
+  { label: "Vomiting", genders: ["all"] },
+  { label: "Nausea", genders: ["all"] },
+  { label: "Unusual Vaginal/Genital Discharge", genders: ["all"] },
+  { label: "Fever or Chills", genders: ["all"] },
+  { label: "Fatigue or weakness", genders: ["all"] },
+  { label: "Jaundice", genders: ["all"] },
 ];
 
 const RIGHT_SYMPTOMS = [
-  "Missed menstrual cycle", "Body aches",
-   "Numbness or tingling", "Frequent urination"
+  { label: "Missed menstrual cycle", genders: ["female"] },
+  { label: "Body aches", genders: ["all"] },
+  { label: "Numbness or tingling", genders: ["all"] },
+  { label: "Frequent urination", genders: ["all"] },
 ];
 
-function SymptomsCard({ onGetTested, onClose }) {
+function matchesGender(item, gender) {
+  if (!item.genders || item.genders.includes("all")) return true;
+  if (!gender) return true;
+  return item.genders.includes(gender.toLowerCase());
+}
+
+function SymptomsCard({ onGetTested, onClose, gender }) {
   const [selected, setSelected] = useState(new Set());
   const sheetRef = useRef(null);
   const dragHandlers = useSheetDrag(sheetRef, onClose);
 
-  const toggle = (symptom) => {
+  const toggle = (label) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(symptom) ? next.delete(symptom) : next.add(symptom);
+      next.has(label) ? next.delete(label) : next.add(label);
       return next;
     });
   };
 
   const renderColumn = (items) =>
-    items.map((symptom) => (
-      <label
-        key={symptom}
-        className={
-          selected.has(symptom)
-            ? "symptoms-option symptoms-option-active"
-            : "symptoms-option"
-        }
-      >
-        <input
-          type="checkbox"
-          checked={selected.has(symptom)}
-          onChange={() => toggle(symptom)}
-        />
-        <span className="symptoms-check-dot">
-          {selected.has(symptom) && <Check size={13} color="white" strokeWidth={3} />}
-        </span>
-        <span className="symptoms-label">{symptom}</span>
-      </label>
-    ));
+    items
+      .filter((item) => matchesGender(item, gender))
+      .map((item) => (
+        <label
+          key={item.label}
+          className={
+            selected.has(item.label)
+              ? "symptoms-option symptoms-option-active"
+              : "symptoms-option"
+          }
+        >
+          <input
+            type="checkbox"
+            checked={selected.has(item.label)}
+            onChange={() => toggle(item.label)}
+          />
+          <span className="symptoms-check-dot">
+            {selected.has(item.label) && <Check size={13} color="white" strokeWidth={3} />}
+          </span>
+          <span className="symptoms-label">{item.label}</span>
+        </label>
+      ));
 
   return (
     <div className="symptoms-overlay" onClick={() => onClose?.()}>
