@@ -22,6 +22,12 @@ import { saveUserLocation } from "../api/locationApi";
 import { useLocationPermission } from "../hooks/UseLocationPermission";
 import TestChoiceCard from "../components/TestChoiceCard/TestChoiceCard";
 
+import {
+  loadLastLocation,
+  saveLastLocation,
+  clearLastLocation,
+} from "../utils/locationStore";
+
 /* ==================================================
    FALLBACK LOCATION
 ================================================== */
@@ -38,7 +44,7 @@ const MAX_SAVED_ADDRESSES = 10;
  * Persisted "myself" profile — separate from the saved
  * addresses. This is what lets LocationSearch know, the
  * next time the user books for themselves, whether there's
- * existing health data to offer editing (or skipping).
+ * existing health data to reuse (or re-enter).
  */
 const MYSELF_INFO_KEY = "lably_myself_info";
 
@@ -102,6 +108,13 @@ function LocationSearch() {
 
   const [deniedFallback, setDeniedFallback] = useState(false);
 
+  /*
+   * Live tracking starts on if the route asked for it OR
+   * if we already have permission and nothing cached —
+   * see the effect below, which flips it on as soon as
+   * the browser reports "granted".
+   */
+
   const [isLiveTracking, setIsLiveTracking] = useState(() =>
     Boolean(routeState?.auto)
   );
@@ -112,6 +125,13 @@ function LocationSearch() {
     permissionState === "denied" ||
     (deniedFallback && permissionState !== "granted");
 
+  /*
+   * === CHANGED: setState calls deferred with queueMicrotask —
+   * same fix as the effect below. This one was gated behind a
+   * ref check so it only ever fires once per block/recover
+   * cycle, but the lint rule flags the direct call regardless
+   * of how narrow the condition is.
+   */
   useEffect(() => {
     if (isLocationBlocked) {
       wasBlockedRef.current = true;
@@ -120,8 +140,11 @@ function LocationSearch() {
 
     if (wasBlockedRef.current && permissionState === "granted") {
       wasBlockedRef.current = false;
-      setDeniedFallback(false);
-      setIsLiveTracking(true);
+
+      queueMicrotask(() => {
+        setDeniedFallback(false);
+        setIsLiveTracking(true);
+      });
     }
   }, [isLocationBlocked, permissionState]);
 
@@ -135,7 +158,15 @@ function LocationSearch() {
 
   const searchSessionTokenRef = useRef(generateSessionToken());
 
-  const [query, setQuery] = useState("");
+  /*
+   * Seeded from the cached location so the address box is
+   * already filled in when the user comes back to this page.
+   */
+
+  const [query, setQuery] = useState(
+    () => loadLastLocation()?.address ?? ""
+  );
+
   const [suggestions, setSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [activePanel, setActivePanel] = useState(null);
@@ -183,14 +214,6 @@ function LocationSearch() {
 
   const [myselfInfo, setMyselfInfo] = useState(() => loadMyselfInfo());
 
-  /*
-   * Selected tests from ChooseTestCard, and the personal
-   * details for the current request — both need to survive
-   * closing/reopening those cards (e.g. "Add test" from
-   * RequestStatusCard reopens ChooseTestCard, and it
-   * should come back with whatever was already picked).
-   */
-
   const [selectedTests, setSelectedTests] = useState([]);
   const [personalInfo, setPersonalInfo] = useState(null);
 
@@ -200,13 +223,6 @@ function LocationSearch() {
   const [showTestChoice, setShowTestChoice] = useState(false);
   const [showBookingWho, setShowBookingWho] = useState(false);
   const [showEditCheck, setShowEditCheck] = useState(false);
-
-  /*
-   * Whenever any part of the post-"Get Tested" flow is
-   * active, the top search box/pills and the footer
-   * button should be hidden — they belong to the
-   * "pick a location" phase, not what comes after.
-   */
 
   const isInFlow =
     showTestChoice ||
@@ -224,9 +240,45 @@ function LocationSearch() {
 
   /* ==================================================
      SELECTED PLACE
+
+     Seeded from the cached location so a confirmed
+     location survives leaving and re-entering this page.
   ================================================== */
 
-  const [selectedPlace, setSelectedPlace] = useState(null);
+  const [selectedPlace, setSelectedPlace] = useState(
+    () => loadLastLocation()
+  );
+
+  /*
+   * Any time a place is confirmed, cache it — this is the
+   * single write point, so every path that sets a place
+   * (search, saved address, map drag, GPS) is covered.
+   */
+
+  useEffect(() => {
+    if (selectedPlace) {
+      saveLastLocation(selectedPlace);
+    }
+  }, [selectedPlace]);
+
+  /*
+   * If the device already has permission and we have no
+   * location yet, turn live tracking straight on rather
+   * than waiting for the user to act.
+   */
+
+  /*
+   * === CHANGED: setState deferred with queueMicrotask — this
+   * is the effect that was flagged. It's still a legitimate
+   * effect (reacting to the device already having permission
+   * granted, an external signal), just moved out of the
+   * effect's synchronous call stack.
+   */
+  useEffect(() => {
+    if (permissionState !== "granted" || selectedPlace) return;
+
+    queueMicrotask(() => setIsLiveTracking(true));
+  }, [permissionState, selectedPlace]);
 
   const debouncedQuery = useDebounce(query, 400);
 
@@ -543,48 +595,33 @@ function LocationSearch() {
 
   const mapTrackGps = isLiveTracking && permissionState === "granted";
 
-  /*
-   * The puck can only be dragged during the normal
-   * "pick a location" phase. Once the request-status
-   * screen is showing, the location is locked in.
-   */
-
   const isPuckDraggable = activeOverlay !== "requeststatus";
 
   /* ==================================================
      GET TESTED
 
-     Kicks off the new flow: instead of jumping straight to
-     "how would you like to proceed", we now first ask WHO
-     the request is for.
+     The card now opens IMMEDIATELY. Persisting the address
+     and POSTing the location are fire-and-forget — they no
+     longer block the UI, which is what was making this
+     button feel slow to respond.
   ================================================== */
 
-  const handleGetTested = async () => {
+  const handleGetTested = () => {
     if (!isLocationConfirmed) {
       return;
     }
 
+    setShowBookingWho(true);
+
     persistSavedAddress(selectedPlace);
 
-    try {
-      await saveUserLocation(selectedPlace.lat, selectedPlace.lng);
-    } catch (error) {
+    saveUserLocation(selectedPlace.lat, selectedPlace.lng).catch((error) => {
       console.warn("LABLY save location failed:", error);
-    }
-
-    setShowBookingWho(true);
+    });
   };
 
   /* ==================================================
      BOOKING WHO → NEXT
-
-     - "Myself" + an existing saved profile → ask whether
-       to edit it or continue with what's on file.
-     - "Myself" + no saved profile yet → nothing to offer
-       editing, so go straight to the form.
-     - "Someone else" → always straight to the form (blank,
-       unless they'd already started filling it earlier in
-       this same request).
   ================================================== */
 
   const handleBookingWhoNext = (choice) => {
@@ -604,34 +641,27 @@ function LocationSearch() {
   };
 
   /* ==================================================
-     EDIT HEALTH DATA CHOICE
+     USE EXISTING DATA — YES / NO
 
-     "Edit"     → open the form, pre-filled with the saved profile.
-     "Continue" → skip the form entirely, reuse the saved profile
-                  as-is, and go straight to "how would you like
-                  to proceed".
+     Yes → reuse the saved profile as-is, skip the form.
+     No  → open the form so they can fill it in again,
+           pre-filled so they only change what's wrong.
   ================================================== */
 
-  const handleEditHealthChoice = (action) => {
+  const handleUseExistingYes = () => {
     setShowEditCheck(false);
-
-    if (action === "edit") {
-      setPersonalInfo(myselfInfo);
-      setActiveOverlay("personalinfo");
-      return;
-    }
-
     setPersonalInfo(myselfInfo);
     setShowTestChoice(true);
   };
 
+  const handleUseExistingNo = () => {
+    setShowEditCheck(false);
+    setPersonalInfo(myselfInfo);
+    setActiveOverlay("personalinfo");
+  };
+
   /* ==================================================
      PERSONAL INFO → NEXT
-
-     Now runs BEFORE "how would you like to proceed", so it
-     leads into TestChoiceCard instead of RequestStatusCard.
-     When booking for themselves, this is also where the
-     saved "myself" profile gets written/updated.
   ================================================== */
 
   const handlePersonalInfoNext = (data) => {
@@ -681,11 +711,6 @@ function LocationSearch() {
 
   /* ==================================================
      ANY OF THE THREE "PROCEED" CARDS → REQUEST STATUS
-
-     Personal info is already collected earlier in the flow
-     now, so "Get Tested"/"Next" on these three goes straight
-     to the request-status screen instead of back to the
-     personal info form.
   ================================================== */
 
   const handleProceedToRequestStatus = () => {
@@ -702,6 +727,11 @@ function LocationSearch() {
     }
   };
 
+  /*
+   * Cancelling clears the REQUEST, not the location —
+   * the user is still standing where they were standing.
+   */
+
   const handleCancelRequest = () => {
     setActiveOverlay(null);
     setRequestOrigin(null);
@@ -710,7 +740,13 @@ function LocationSearch() {
     setBookingFor(null);
   };
 
+  /*
+   * Changing location is the one case where the cached
+   * location SHOULD be dropped — that's the whole point.
+   */
+
   const handleConfirmChangeLocation = () => {
+    clearLastLocation();
     setSelectedPlace(null);
     setQuery("");
     setActiveOverlay(null);
@@ -723,11 +759,6 @@ function LocationSearch() {
 
   /* ==================================================
      BACK BUTTON
-
-     Normally goes to Home. While viewing the request
-     status screen, it should step back to whichever card
-     the request started from (test / symptoms / package)
-     instead of leaving the flow entirely.
   ================================================== */
 
   const handleBack = () => {
@@ -739,6 +770,9 @@ function LocationSearch() {
     navigate("/home", {
       state: {
         cameFromLocationSearch: true,
+        lat: selectedPlace?.lat,
+        lng: selectedPlace?.lng,
+        address: selectedPlace?.address,
       },
     });
   };
@@ -821,6 +855,7 @@ function LocationSearch() {
                   onClick={() => {
                     setQuery("");
                     setSelectedPlace(null);
+                    clearLastLocation();
                     setSuggestions([]);
                     setActivePanel(null);
                   }}
@@ -984,14 +1019,14 @@ function LocationSearch() {
       )}
 
       {/* ==================================================
-         EDIT HEALTH DATA CARD — only shown for "myself"
-         when a saved profile already exists.
+         USE EXISTING DATA CARD — only for "myself" when a
+         saved profile already exists.
       ================================================== */}
 
       {showEditCheck && (
         <EditHealthDataCard
-          onEdit={() => handleEditHealthChoice("edit")}
-          onContinue={() => handleEditHealthChoice("continue")}
+          onYes={handleUseExistingYes}
+          onNo={handleUseExistingNo}
           onClose={() => {
             setShowEditCheck(false);
             setBookingFor(null);

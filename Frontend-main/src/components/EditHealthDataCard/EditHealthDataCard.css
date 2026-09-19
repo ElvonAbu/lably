@@ -55,55 +55,52 @@
   font-size:clamp(1.2rem,3vw,1.5rem);
   font-weight:700;
   color:#1F1147;
-  margin:0 0 .5rem;
+  margin:0 0 clamp(.5rem,1vw,.8rem);
   line-height:1.35;
 }
 
-.edit-health-subtitle{
+.edit-health-description{
   color:var(--text-light);
   font-size:clamp(.85rem,.3vw + .8rem,1rem);
   line-height:1.5;
-  margin-bottom:clamp(1.6rem,3vw,2.2rem);
+  margin-bottom:clamp(1.4rem,2.5vw,1.8rem);
 }
 
-.edit-health-actions{
-  display:flex;
-  gap:.9rem;
+.edit-health-card > .btn-primary{
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  height:clamp(38px,7vw,50px);
+  font-size:clamp(.78rem,.3vw + .72rem,.95rem);
 }
 
-.edit-health-btn{
-  flex:1;
+.edit-health-secondary-btn{
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  margin-top:clamp(.5rem,1.2vw,.7rem);
+  background:none;
   border:none;
-  border-radius:999px;
-  padding:.9rem 1rem;
+  color:#999;
   font-family:inherit;
-  font-size:.98rem;
-  font-weight:700;
+  font-size:clamp(.7rem,.3vw + .66rem,.85rem);
+  padding:.35rem;
   cursor:pointer;
-  transition:background .15s ease, transform .15s ease;
+  -webkit-tap-highlight-color:transparent;
+  transition:color var(--transition);
 }
 
-.edit-health-btn-outline{
-  background:#F3EEFC;
-  color:#7A11F1;
-}
-.edit-health-btn-outline:hover{
-  background:#E7DBFA;
-}
-
-.edit-health-btn-primary{
-  background:#7A11F1;
-  color:#fff;
-}
-.edit-health-btn-primary:hover{
-  background:var(--primary-hover,#6524DF);
-  transform:translateY(-1px);
+.edit-health-secondary-btn:hover,
+.edit-health-secondary-btn:active,
+.edit-health-secondary-btn:focus-visible{
+  color:#666;
 }
 
 @media(max-width:197px){
-  .edit-health-card{padding:.7rem;}
-  .edit-health-illustration{width:90px; margin-bottom:.6rem;}
-  .edit-health-title{font-size:.8rem;}
-  .edit-health-subtitle{font-size:.6rem; margin-bottom:.8rem;}
-  .edit-health-btn{font-size:.62rem; padding:.5rem .6rem;}
+  .edit-health-card{padding:.55rem;}
+  .edit-health-illustration{width:90px; margin-bottom:.35rem;}
+  .edit-health-title{font-size:.68rem; margin-bottom:.25rem;}
+  .edit-health-description{font-size:.5rem; line-height:1.3; margin-bottom:.5rem;}
+  .edit-health-card > .btn-primary{height:28px; font-size:.52rem;}
+  .edit-health-secondary-btn{font-size:.48rem; margin-top:.3rem;}
 }

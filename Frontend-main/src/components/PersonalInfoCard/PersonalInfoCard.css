@@ -12,8 +12,6 @@
   z-index:99999;
 }
 
-/* Outer shape only — this is what owns the border-radius, and it clips
-   its inner scroll area so the corner is never cut by a scrollbar. */
 .personal-info-card{
   position:relative;
   z-index:100000;
@@ -32,7 +30,6 @@
   to{opacity:1; transform:translateY(0) scale(1);}
 }
 
-/* Inner scroll area — owns the scrollbar and the padding, no radius of its own */
 .personal-info-card-inner{
   max-height:calc(100vh - 2.4rem);
   overflow-y:auto;
@@ -95,6 +92,33 @@
   transition:var(--transition);
 }
 
+/* ==================================================
+   SELECT ARROW
+
+   The native arrow sits hard against the right edge of
+   the control, which on the narrow 3-up date-of-birth
+   columns leaves a visible gap between the text and the
+   arrow. Replacing it with an inline SVG chevron lets us
+   position it a fixed .85rem from the edge and pull the
+   right padding in to match, so the arrow always sits
+   just after the text instead of drifting away from it.
+================================================== */
+.personal-info-select{
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+  padding-right:2.1rem;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%236B6580' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right .85rem center;
+  background-size:12px 8px;
+  text-overflow:ellipsis;
+}
+
+.personal-info-select::-ms-expand{
+  display:none;
+}
+
 .personal-info-input:focus,
 .personal-info-select:focus,
 .personal-info-textarea:focus{
@@ -112,6 +136,15 @@
   display:grid;
   grid-template-columns:1fr 1fr 1fr;
   gap:.6rem;
+}
+
+/* The three date columns are narrow, so tighten their
+   horizontal padding further — otherwise the label text
+   gets clipped by the arrow's reserved space. */
+.personal-info-dob-row .personal-info-select{
+  padding-left:.7rem;
+  padding-right:1.7rem;
+  background-position:right .6rem center;
 }
 
 .personal-info-select-full{
@@ -138,8 +171,6 @@
 .personal-info-next{
   width:100%;
 }
-
-
 
 /* ===== MOBILE: shorter, tighter card so it actually fits the screen ===== */
 @media(max-width:640px){
@@ -182,6 +213,16 @@
     padding:.6rem .8rem;
   }
 
+  .personal-info-select{
+    padding-right:1.9rem;
+  }
+
+  .personal-info-dob-row .personal-info-select{
+    padding-left:.6rem;
+    padding-right:1.5rem;
+    background-position:right .5rem center;
+  }
+
   .personal-info-textarea{
     min-height:40px;
   }
@@ -200,5 +241,7 @@
   .personal-info-input,
   .personal-info-select,
   .personal-info-textarea{font-size:.6rem; padding:.5rem .6rem;}
+  .personal-info-select{padding-right:1.4rem; background-size:9px 6px;}
+  .personal-info-dob-row .personal-info-select{padding-left:.4rem; padding-right:1.2rem; background-position:right .35rem center;}
   .personal-info-notice{font-size:.55rem; padding:.5rem .6rem;}
 }

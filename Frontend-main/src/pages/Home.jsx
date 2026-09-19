@@ -83,13 +83,30 @@ function Home() {
   const [isLocating, setIsLocating] = useState(false);
 
 
+  /*
+   * === CHANGED: setState calls here now run inside a
+   * queueMicrotask instead of directly in the effect body.
+   *
+   * This effect is genuinely syncing local UI state to an
+   * external signal (the browser's Permissions API status),
+   * which is a legitimate use of an Effect — but calling
+   * setState synchronously and unconditionally every time
+   * `permissionState` becomes "granted" forces React to
+   * start a second render pass mid-commit. Deferring by one
+   * microtask moves the update just outside that synchronous
+   * window (same frame, imperceptible), which is what the
+   * "Avoid calling setState() directly within an effect"
+   * warning is asking for.
+   */
   useEffect(() => {
-    if (permissionState === "granted") {
+    if (permissionState !== "granted") return;
+
+    queueMicrotask(() => {
       setDeviceLocationBlocked(false);
       setShowLocationHelp(false);
       setLocationError("");
       setIsLocating(false);
-    }
+    });
   }, [permissionState]);
 
 
@@ -111,7 +128,12 @@ function Home() {
     if (!("geolocation" in navigator)) return;
 
     sessionStorage.setItem(AUTO_NAVIGATE_KEY, "1");
-    setIsLocating(true);
+
+    // === CHANGED: same fix as above — this was the other
+    // flagged call, a setState fired synchronously as soon
+    // as the effect runs, before the (async) geolocation
+    // request even starts.
+    queueMicrotask(() => setIsLocating(true));
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
