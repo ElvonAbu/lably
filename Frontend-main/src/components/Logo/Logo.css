@@ -1,0 +1,70 @@
+.lably-logo-mark{
+  display:inline-flex;
+  cursor:pointer;
+}
+
+.lably-logo-svg{
+  height:calc(var(--logo-size, 1.9rem) * 1.5);
+  aspect-ratio:75 / 45;
+  width:auto;
+  display:block;
+  overflow:visible;
+}
+
+.lably-logo-letters{
+  transform-origin:center bottom;
+}
+
+.lably-logo-smile-path{
+  stroke:#7A11F1;
+  fill:none;
+  stroke-dasharray:101;
+  stroke-dashoffset:0;
+  transform-box:fill-box;
+  transform-origin:center;
+}
+
+.lably-logo-animating .lably-logo-smile-path{
+  animation:
+    lablySmileDraw var(--lably-smile-duration, 2.2s) cubic-bezier(.45,.05,.35,1) both,
+    lablySmileBreathe var(--lably-smile-duration, 2.2s) linear both;
+}
+
+.lably-logo-animating .lably-logo-letters{
+  animation:lablyLettersBreathe var(--lably-smile-duration, 2.2s) linear both;
+}
+
+@keyframes lablySmileDraw{
+  0%{ stroke-dashoffset:101; }
+  45%{ stroke-dashoffset:0; }
+  100%{ stroke-dashoffset:0; }
+}
+
+/*
+  Smile: rises + widens together with the draw (peak at 45%), holds
+  the peak briefly (45→60%), then eases down SLOWLY over a much
+  longer window (60→100%) before settling back to rest.
+*/
+@keyframes lablySmileBreathe{
+  0%{   transform:translateY(0)    scaleX(1);    animation-timing-function:cubic-bezier(.45,.05,.35,1); }
+  45%{  transform:translateY(-5px) scaleX(1.14);  animation-timing-function:cubic-bezier(.45,.05,.35,1); }
+  60%{  transform:translateY(-5px) scaleX(1.14);  animation-timing-function:cubic-bezier(.22,1,.36,1); }
+  100%{ transform:translateY(0)    scaleX(1); }
+}
+
+/* Letters: same beats as the smile, so the whole face still moves
+   as one breath — rise, hold, then a slow settle back down. */
+@keyframes lablyLettersBreathe{
+  0%{   transform:translateY(0);    animation-timing-function:cubic-bezier(.45,.05,.35,1); }
+  45%{  transform:translateY(-5px); animation-timing-function:cubic-bezier(.45,.05,.35,1); }
+  60%{  transform:translateY(-5px); animation-timing-function:cubic-bezier(.22,1,.36,1); }
+  100%{ transform:translateY(0); }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .lably-logo-animating .lably-logo-smile-path,
+  .lably-logo-animating .lably-logo-letters{
+    animation:none !important;
+  }
+  .lably-logo-smile-path{ stroke-dashoffset:0; transform:none; }
+}

@@ -1,0 +1,229 @@
+.request-status-root{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  z-index:1150;
+}
+
+/* Outer shape — full-width, height-capped, owns the radius + shadow.
+   overflow:hidden keeps the scroll area from ever poking past the
+   rounded top corners, on any screen size. */
+.request-status-sheet{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  pointer-events:auto;
+  background:var(--surface);
+  border-radius:28px 28px 0 0;
+  box-shadow:0 -8px 40px rgba(20,12,36,.14);
+  box-sizing:border-box;
+  max-height:min(44vh, 460px);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  animation:requestStatusUp .3s cubic-bezier(.32,.72,0,1);
+}
+
+@keyframes requestStatusUp{
+  from{transform:translateY(100%);}
+  to{transform:translateY(0);}
+}
+
+.request-status-handle{
+  width:44px;
+  height:5px;
+  border-radius:999px;
+  background:var(--border);
+  margin:.75rem auto 0;
+  flex-shrink:0;
+}
+
+/* Inner scroll area — everything scrollable lives here, capped by the
+   sheet's max-height above so the map/puck behind always stays visible */
+.request-status-scroll{
+  overflow-y:auto;
+  padding:.9rem clamp(1.4rem,4vw,2rem) clamp(1.4rem,3vw,1.8rem);
+  scrollbar-width:thin;
+  scrollbar-color:rgba(120,110,140,.35) transparent;
+}
+.request-status-scroll::-webkit-scrollbar{ width:5px; }
+.request-status-scroll::-webkit-scrollbar-track{ background:transparent; }
+.request-status-scroll::-webkit-scrollbar-thumb{
+  background:rgba(120,110,140,.35);
+  border-radius:999px;
+}
+.request-status-scroll::-webkit-scrollbar-thumb:hover{
+  background:rgba(120,110,140,.55);
+}
+
+.request-status-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:1rem;
+  margin-bottom:1rem;
+}
+
+.request-status-title{
+  font-size:clamp(1.02rem,2.4vw,1.25rem);
+  font-weight:700;
+  color:var(--text);
+  margin:0;
+  line-height:1.35;
+}
+
+.request-status-timer{
+  flex-shrink:0;
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  background:var(--primary-soft, #F1E9FC);
+  color:var(--primary);
+  font-size:.95rem;
+  font-weight:700;
+  padding:.4rem .75rem;
+  border-radius:999px;
+}
+
+.request-status-list{
+  background:var(--background, #F7F5FB);
+  border-radius:16px;
+  padding:0 .9rem;
+  margin-bottom:1rem;
+}
+
+.request-status-row{
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:.75rem;
+  background:none;
+  border:none;
+  border-bottom:1px solid var(--border);
+  padding:.85rem 0;
+  font-family:inherit;
+  font-size:clamp(.88rem,.3vw + .8rem,1rem);
+  color:var(--text);
+  cursor:pointer;
+  text-align:left;
+}
+
+.request-status-list .request-status-row:last-child{
+  border-bottom:none;
+}
+
+.request-status-row-icon{
+  width:30px;
+  height:30px;
+  flex-shrink:0;
+  border-radius:9px;
+  background:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--primary);
+}
+
+.request-status-row span{
+  flex:1;
+}
+
+.request-status-chevron{
+  color:var(--text-light);
+  transition:transform .2s ease;
+  flex-shrink:0;
+}
+
+.request-status-chevron-open{
+  transform:rotate(90deg);
+}
+
+.request-status-notes-input{
+  width:100%;
+  box-sizing:border-box;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:.8rem 1rem;
+  font-family:inherit;
+  font-size:clamp(.82rem,.3vw + .76rem,.92rem);
+  color:var(--text);
+  background:#fff;
+  resize:vertical;
+  min-height:56px;
+  margin:0 0 .9rem;
+}
+
+.request-status-notes-input:focus{
+  outline:none;
+  border-color:var(--primary);
+  box-shadow:0 0 0 4px rgba(123,46,255,.12);
+}
+
+.request-status-label{
+  font-size:clamp(.78rem,.3vw + .72rem,.88rem);
+  color:var(--text-light);
+  font-weight:600;
+  margin:0 0 .6rem;
+}
+
+.request-status-current{
+  display:flex;
+  align-items:center;
+  gap:.7rem;
+  background:var(--background, #F7F5FB);
+  border-radius:14px;
+  padding:.8rem .9rem;
+  margin-bottom:1.3rem;
+}
+
+.request-status-item-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background:var(--primary);
+  flex-shrink:0;
+}
+
+.request-status-item-text{
+  font-size:clamp(.85rem,.3vw + .78rem,.96rem);
+  color:var(--text);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.request-status-cancel{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:.5rem;
+  background:none;
+  border:1.5px solid var(--border);
+  border-radius:999px;
+  padding:.75rem;
+  font-family:inherit;
+  font-size:clamp(.85rem,.3vw + .78rem,.96rem);
+  font-weight:600;
+  color:var(--text-light);
+  cursor:pointer;
+  transition:var(--transition);
+}
+
+.request-status-cancel:hover{
+  color:#E5484D;
+  border-color:#F4C6C8;
+  background:#FDF3F3;
+}
+
+@media(max-width:197px){
+  .request-status-scroll{padding:.6rem;}
+  .request-status-title{font-size:.75rem;}
+  .request-status-timer{font-size:.68rem; padding:.28rem .5rem;}
+  .request-status-row{font-size:.62rem; padding:.6rem 0;}
+  .request-status-row-icon{width:22px; height:22px;}
+  .request-status-label{font-size:.55rem;}
+  .request-status-item-text{font-size:.6rem;}
+  .request-status-cancel{font-size:.6rem;}
+}

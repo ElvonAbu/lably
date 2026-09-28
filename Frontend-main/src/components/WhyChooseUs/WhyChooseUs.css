@@ -1,0 +1,243 @@
+.why-choose-section{
+
+    padding-block:var(--section-padding);
+
+    background:var(--background);
+
+}
+
+.why-grid{
+
+    display:grid;
+
+    grid-template-columns:repeat(4,1fr);
+
+    gap:clamp(1.4rem,2.5vw,2rem);
+
+    margin-top:clamp(2.5rem,4vw,4rem);
+
+}
+
+.why-card{
+
+    background:white;
+
+    padding:clamp(1.4rem,2vw + .8rem,2rem);
+
+    border-radius:var(--radius-large);
+
+    text-align:center;
+
+    box-shadow:var(--shadow);
+
+    transition:var(--transition);
+
+}
+
+.why-card:hover{
+
+    transform:translateY(-10px);
+
+    box-shadow:var(--shadow-hover);
+
+}
+
+.why-icon{
+
+    width:clamp(62px,4vw + 45px,85px);
+
+    height:clamp(62px,4vw + 45px,85px);
+
+    border-radius:50%;
+
+    background:#F1E8FF;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    color:var(--primary);
+
+    margin:0 auto clamp(1rem,1.5vw,1.5rem);
+
+    transition:var(--transition);
+
+}
+
+.why-card:hover .why-icon{
+
+    background:var(--primary);
+
+    color:white;
+
+    transform:scale(1.08);
+
+}
+
+.why-card h3{
+
+    font-size:clamp(1.05rem,.4vw + .95rem,1.25rem);
+
+    margin-bottom:1rem;
+    word-break:break-word;
+
+}
+
+.why-card p{
+
+    font-size:clamp(.88rem,.3vw + .8rem,1rem);
+
+    line-height:1.8;
+
+    color:var(--text-light);
+
+}
+
+.ceo-quote{
+
+    margin-top:clamp(3rem,5vw,5rem);
+
+    background:white;
+
+    border-radius:30px;
+
+    padding:clamp(1.6rem,3vw + .8rem,3rem);
+
+    text-align:center;
+
+    box-shadow:var(--shadow);
+
+}
+
+.quote-icon{
+
+    color:var(--primary);
+
+    margin-bottom:1.5rem;
+
+}
+
+.ceo-quote p{
+
+    font-size:clamp(.95rem,.35vw + .85rem,1.1rem);
+
+    max-width:900px;
+
+    margin:auto;
+
+    line-height:2;
+
+    color:var(--text-light);
+
+}
+
+.quote-author{
+
+    margin-top:2rem;
+
+}
+
+.quote-author strong{
+
+    display:block;
+
+    color:var(--text);
+
+    font-size:clamp(.95rem,.3vw + .88rem,1.05rem);
+
+}
+
+.quote-author span{
+
+    color:var(--primary);
+
+    font-size:clamp(.85rem,.3vw + .78rem,.95rem);
+
+}
+
+@media(max-width:1100px){
+
+.why-grid{
+
+grid-template-columns:repeat(2,1fr);
+
+}
+
+}
+
+@media(max-width:700px){
+
+.why-grid{
+
+grid-template-columns:1fr;
+
+}
+
+}
+
+
+@media(max-width:197px){
+
+.why-card{
+
+padding:.8rem;
+
+}
+
+.why-icon{
+
+width:42px;
+
+height:42px;
+
+margin-bottom:.6rem;
+
+}
+
+.why-card h3{
+
+font-size:.7rem;
+
+margin-bottom:.4rem;
+
+}
+
+.why-card p{
+
+font-size:.6rem;
+
+line-height:1.5;
+
+}
+
+.ceo-quote{
+
+padding:.9rem;
+
+margin-top:1.5rem;
+
+}
+
+.ceo-quote p{
+
+font-size:.65rem;
+
+line-height:1.6;
+
+}
+
+.quote-author strong{
+
+font-size:.68rem;
+
+}
+
+.quote-author span{
+
+font-size:.6rem;
+
+}
+
+}

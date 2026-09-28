@@ -1,0 +1,79 @@
+.home{
+
+    position:relative;
+
+    width:100%;
+
+    height:100vh;
+
+    height:100dvh;   /* === ADDED: same fix .map-shell already has — 100vh
+                         alone can render shorter than the real viewport on
+                         iOS Safari, and since this container clips its
+                         children (overflow:hidden), a too-short .home was
+                         cutting the map off at the edge instead of letting
+                         it fill the space. */
+
+    overflow:hidden;
+
+    background:var(--surface);
+
+}
+
+.home-loading{
+
+min-height:100vh;
+
+width:100%;
+
+background:var(--background);
+
+}
+
+
+/* ==================================================
+   TOAST — replaces the old inline <p className="auth-error">
+
+   which had no positioning of its own, so it rendered
+
+   in normal document flow and could push layout around
+
+   just like the old sign-out button did.
+================================================== */
+
+.home-toast{
+
+    position:absolute;
+
+    top:clamp(4.4rem,11vw,5.9rem);
+
+    left:50%;
+
+    transform:translateX(-50%);
+
+    z-index:1300;
+
+    padding:.6rem 1rem;
+
+    border-radius:var(--radius-medium);
+
+    font-size:clamp(.75rem,.3vw + .7rem,.88rem);
+
+    box-shadow:var(--shadow-medium);
+
+    max-width:min(90vw,360px);
+
+    text-align:center;
+
+    box-sizing:border-box;
+
+}
+
+.home-toast-error{
+
+    background:#FFF6ED;
+
+    color:#B54708;
+
+    border:1px solid #FDDCAB;
+
+}
