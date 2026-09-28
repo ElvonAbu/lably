@@ -25,6 +25,8 @@ import {
   updateMyPatientProfile,
   backendPatientToFrontend,
 } from "../api/patientApi";
+// === NEW: booking API (POST /testrequest) ===
+import { createTestRequest } from "../api/testRequestApi";
 import { useLocationPermission } from "../hooks/UseLocationPermission";
 import TestChoiceCard from "../components/TestChoiceCard/TestChoiceCard";
 
@@ -149,24 +151,27 @@ function LocationSearch() {
    * Who THIS booking is for.
    * "myself"  → use/create relationship: "self"
    * "someone" → always create relationship: "other"
-   * This is how the app knows which patient type to use.
    */
   const [bookingFor, setBookingFor] = useState(null);
 
   /*
-   * Self profile from backend only (GET /me). Not localStorage.
-   * Used for "Use existing info?" when bookingFor === "myself".
+   * Self profile from backend only (GET /patientdetails/me).
    */
   const [myselfInfo, setMyselfInfo] = useState(null);
 
   /*
    * Patient record for THIS booking (self or other).
-   * - personalInfo: form fields for UI
-   * - activePatientId: Mongo _id to attach to TestRequest / cart
+   * activePatientId = Mongo _id sent as patientid on POST /testrequest
    */
   const [selectedTests, setSelectedTests] = useState([]);
+  const [selectedSymptoms, setSelectedSymptoms] = useState([]);
+  const [selectedPackageId, setSelectedPackageId] = useState(null);
   const [personalInfo, setPersonalInfo] = useState(null);
   const [activePatientId, setActivePatientId] = useState(null);
+
+  // Set after successful POST /testrequest
+  const [activeBookingId, setActiveBookingId] = useState(null);
+  const [bookingError, setBookingError] = useState(null);
 
   const [showChangeLocationConfirm, setShowChangeLocationConfirm] =
     useState(false);
@@ -542,9 +547,7 @@ function LocationSearch() {
 
   /* ==================================================
      BOOKING WHO → NEXT
-
-     This is where the app decides self vs other for
-     THIS booking. Backend is the only source of truth.
+     (patient API only — NOT testRequest)
   ================================================== */
 
   const handleBookingWhoNext = async (choice) => {
@@ -553,47 +556,39 @@ function LocationSearch() {
     setActivePatientId(null);
     setPersonalInfo(null);
     setMyselfInfo(null);
+    setBookingError(null);
 
-    // --- MYSELF: load relationship "self" from API ---
     if (choice === "myself") {
       try {
         const res = await getMyPatientProfile();
-        // res.data is the patient document or null
         const fromApi = backendPatientToFrontend(res?.data);
 
         if (fromApi) {
-          setMyselfInfo(fromApi);
-          // Keep the Mongo id so "Use existing" can set activePatientId
           setMyselfInfo({
             ...fromApi,
             _id: res.data._id,
           });
           setShowEditCheck(true);
         } else {
-          // First time — empty form → will POST relationship: "self"
           setActiveOverlay("personalinfo");
         }
       } catch (error) {
         console.warn("LABLY getMyPatientProfile failed:", error);
-        // No localStorage fallback — show form or error
         setActiveOverlay("personalinfo");
       }
       return;
     }
 
-    // --- SOMEONE ELSE: never touch self; always new "other" ---
+    // Someone else
     setActiveOverlay("personalinfo");
   };
 
   /* ==================================================
      USE EXISTING DATA — YES / NO
-     Only reached when bookingFor === "myself" and
-     GET /me already returned a self profile.
   ================================================== */
 
   const handleUseExistingYes = () => {
     setShowEditCheck(false);
-    // This booking uses the self profile
     setPersonalInfo(myselfInfo);
     setActivePatientId(myselfInfo?._id ?? null);
     setShowTestChoice(true);
@@ -601,16 +596,13 @@ function LocationSearch() {
 
   const handleUseExistingNo = () => {
     setShowEditCheck(false);
-    // Pre-fill form; save will upsert self and refresh activePatientId
     setPersonalInfo(myselfInfo);
     setActiveOverlay("personalinfo");
   };
 
   /* ==================================================
      PERSONAL INFO → NEXT
-
-     Persist to backend, then lock in activePatientId
-     for the rest of THIS booking.
+     (patient API only — NOT testRequest)
   ================================================== */
 
   const handlePersonalInfoNext = async (data) => {
@@ -620,7 +612,6 @@ function LocationSearch() {
 
     try {
       const res = await savePatientDetails(data, relationship);
-      // Backend returns { data: { id, patient } } or similar
       const id = res?.data?.id || res?.data?.patient?._id || res?.data?._id;
       const patient = res?.data?.patient || res?.data;
 
@@ -656,6 +647,8 @@ function LocationSearch() {
 
   /* ==================================================
      TEST CHOICE NEXT
+     (UI only — opens test / symptoms / package overlay)
+     testRequest is NOT called here
   ================================================== */
 
   const handleTestChoiceNext = (selectedOption) => {
@@ -682,25 +675,61 @@ function LocationSearch() {
     console.warn("LABLY: unknown test choice:", selectedOption);
   };
 
-  const handleProceedToRequestStatus = () => {
-    // At this point you have everything for the booking:
-    // - activePatientId  → patient document for this booking
-    // - bookingFor       → "myself" | "someone"
-    // - personalInfo     → display fields
-    // - selectedTests    → tests chosen
-    // - selectedPlace    → location
-    //
-    // When you create a TestRequest, send:
-    //   patientid: activePatientId
-    console.log("LABLY booking patient:", {
-      activePatientId,
-      bookingFor,
-      personalInfo,
-      selectedTests,
-      selectedPlace,
-    });
+  /* ==================================================
+     SUBMIT BOOKING → POST /testrequest
 
-    setActiveOverlay("requeststatus");
+     THIS is the only place createTestRequest (testRequestApi) runs.
+     Called when user finishes:
+       - ChooseTestCard (proceedMode: "test")
+       - SymptomsCard   (proceedMode: "symptoms")
+       - TestPackageCard (proceedMode: "checkup")
+  ================================================== */
+
+  const submitBooking = async ({
+    proceedMode,
+    selectedTests: tests = [],
+    symptoms = [],
+    packageId = null,
+  }) => {
+    setBookingError(null);
+
+    if (!activePatientId) {
+      setBookingError(
+        "Patient profile missing. Go back and enter patient info."
+      );
+      return;
+    }
+
+    try {
+      // ========== TESTREQUEST API CALL ==========
+      // POST /testrequest
+      // Body: patientid, proceedMode, selectedTests | symptoms | packageId, location
+      // Backend resolves → resolvedTests (lab codes) and saves Status: Pending
+      const res = await createTestRequest({
+        patientid: activePatientId,
+        proceedMode,
+        selectedTests: tests,
+        symptoms,
+        packageId,
+        location: selectedPlace
+          ? {
+              lat: selectedPlace.lat,
+              lng: selectedPlace.lng,
+              address: selectedPlace.address,
+            }
+          : null,
+      });
+      // ========== END TESTREQUEST API CALL ==========
+
+      setActiveBookingId(res?.data?._id || null);
+      console.log("LABLY booking saved:", res?.data);
+      // res.data.resolvedTests = final list the lab should run
+
+      setActiveOverlay("requeststatus");
+    } catch (error) {
+      console.warn("LABLY createTestRequest failed:", error);
+      setBookingError(error.message || "Could not create booking");
+    }
   };
 
   const handleAddTestFromStatus = () => {
@@ -713,8 +742,12 @@ function LocationSearch() {
     setActiveOverlay(null);
     setRequestOrigin(null);
     setSelectedTests([]);
+    setSelectedSymptoms([]);
+    setSelectedPackageId(null);
     setPersonalInfo(null);
     setActivePatientId(null);
+    setActiveBookingId(null);
+    setBookingError(null);
     setBookingFor(null);
     setMyselfInfo(null);
   };
@@ -726,8 +759,12 @@ function LocationSearch() {
     setActiveOverlay(null);
     setRequestOrigin(null);
     setSelectedTests([]);
+    setSelectedSymptoms([]);
+    setSelectedPackageId(null);
     setPersonalInfo(null);
     setActivePatientId(null);
+    setActiveBookingId(null);
+    setBookingError(null);
     setBookingFor(null);
     setMyselfInfo(null);
     setShowChangeLocationConfirm(false);
@@ -766,6 +803,10 @@ function LocationSearch() {
     <div className="location-search-page">
       {logoutError && (
         <p className="home-toast home-toast-error">{logoutError}</p>
+      )}
+
+      {bookingError && (
+        <p className="home-toast home-toast-error">{bookingError}</p>
       )}
 
       <Map
@@ -997,35 +1038,60 @@ function LocationSearch() {
         />
       )}
 
+      {/* ==================================================
+         CHOOSE TEST → submitBooking → TESTREQUEST API
+         When: user taps Get Tested on ChooseTestCard
+      ================================================== */}
       {activeOverlay === "test" && (
         <ChooseTestCard
           initialSelected={selectedTests}
           gender={personalInfo?.gender}
-          onGetTested={(list) => {
-            console.log("LABLY: tests selected:", list);
+          onGetTested={async (list) => {
             setSelectedTests(list);
-            handleProceedToRequestStatus();
+            // → submitBooking → createTestRequest (POST /testrequest)
+            await submitBooking({
+              proceedMode: "test",
+              selectedTests: list,
+            });
           }}
           onClose={() => setActiveOverlay(null)}
         />
       )}
 
+      {/* ==================================================
+         SYMPTOMS → submitBooking → TESTREQUEST API
+         When: user taps Get Tested on SymptomsCard
+      ================================================== */}
       {activeOverlay === "symptoms" && (
         <SymptomsCard
           gender={personalInfo?.gender}
-          onGetTested={(list) => {
-            console.log("LABLY: symptoms selected:", list);
-            handleProceedToRequestStatus();
+          onGetTested={async (list) => {
+            setSelectedSymptoms(list);
+            // → submitBooking → createTestRequest (POST /testrequest)
+            await submitBooking({
+              proceedMode: "symptoms",
+              symptoms: list,
+            });
           }}
           onClose={() => setActiveOverlay(null)}
         />
       )}
 
+      {/* ==================================================
+         PACKAGE → submitBooking → TESTREQUEST API
+         When: user picks silver / gold / platinum on TestPackageCard
+         packageId must be lowercase: "silver" | "gold" | "platinum"
+      ================================================== */}
       {activeOverlay === "testpackage" && (
         <TestPackageCard
-          onNext={(pkg) => {
-            console.log("LABLY: package selected:", pkg);
-            handleProceedToRequestStatus();
+          onNext={async (pkg) => {
+            const packageId = String(pkg).toLowerCase();
+            setSelectedPackageId(packageId);
+            // → submitBooking → createTestRequest (POST /testrequest)
+            await submitBooking({
+              proceedMode: "checkup",
+              packageId,
+            });
           }}
           onClose={() => setActiveOverlay(null)}
         />

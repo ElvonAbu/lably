@@ -15,15 +15,16 @@ dns.setServers(["8.8.8.8", "1.1.1.1"]);
 const db_url = process.env.databaseurl;
 const app = express();
 const port = 3000;
+
 import Loginroute from "./routes/Login.js";
 import Signuproute from "./routes/signup.js";
-import verifyidentity from "./routes/Identityverification.js";
 import Forgotpassword from "./routes/ForgotPassword.js";
 import otp from "./routes/otp.js";
 import userlocation from "./routes/userlocation.js";
 import registertest from "./routes/registertest.js";
-// === NEW ===
 import patientdetails from "./routes/patientdetails.js";
+// === NEW: smart booking ===
+import Testrequest from "./routes/Testrequest.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const certDir = path.resolve(__dirname, "../certs");
@@ -51,21 +52,19 @@ mongoose
         `Server running at ${hasCerts ? "https" : "http"}://localhost:${port}`
       );
       if (!hasCerts) {
-        console.log(
-          "No cert found in /certs — running plain HTTP. See /certs/README.md."
-        );
+        console.log("No cert found in /certs — running plain HTTP.");
       }
     });
   })
   .catch((err) => {
-    console.log("Error connecting to Databse", err?.message || err);
+    console.log("Error connecting to Database", err?.message || err);
   });
 
 app.use(express.json());
 
 const allowedOrigins = (process.env.corsOrigins || "http://localhost:5173")
   .split(",")
-  .map((origin) => origin.trim());
+  .map((o) => o.trim());
 
 app.use(
   cors({
@@ -76,7 +75,6 @@ app.use(
         callback(new Error("Not allowed by CORS: " + origin));
       }
     },
-    // === CHANGED: added PATCH for future use ===
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
   })
@@ -84,16 +82,14 @@ app.use(
 
 app.use("/login", Loginroute);
 app.use("/signup", Signuproute);
-// app.use("/verify",verifyidentity);
 app.use("/verifyemailaddress", otp);
 app.use("/forgotpassword", Forgotpassword);
 app.use("/userlocation", userlocation);
 app.use("/registertest", registertest);
-// === NEW: patient profile routes ===
 app.use("/patientdetails", patientdetails);
+// === NEW ===
+app.use("/testrequest", Testrequest);
 
 app.get("/", (req, res) => {
-  res.json({
-    message: "Api works",
-  });
+  res.json({ message: "Api works" });
 });

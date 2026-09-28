@@ -1,64 +1,46 @@
 import express from "express";
 import verifySupabaseAuth from "../middlewares/verifySupabaseAuth.js";
-import {newRequestMiddleware} from "../middlewares/Testrequest.js";
-const router=express.Router();
+import {
+  newRequestMiddleware,
+  listMyRequests,
+  cancelRequest,
+  previewResolve,
+} from "../middlewares/Testrequest.js";
 
+const router = express.Router();
 
-router.post("/",verifySupabaseAuth,newRequestMiddleware,(req,res)=>{
+router.use(verifySupabaseAuth);
 
-     return res.status(201).json({
-        message: "Test request processed",
-        created: req.testRequests,  
-        alreadyRequested: req.existingTests   
-    });
-
-
+// Preview resolved tests (no save)
+router.post("/preview", previewResolve, (req, res) => {
+  return res.status(200).json({
+    message: "Resolved tests",
+    data: req.preview,
+  });
 });
 
-
-router.patch("/:id/cancel", verifySupabaseAuth, async (req, res) => {
-  const userid = req.user.id;
-  const { id } = req.params;
- 
-  try {
-    const request = await TestRequest.findById(id);
- 
-    if (!request) {
-      return res.status(404).json({
-        message: "Test request not found."
-      });
-    }
- 
-    if (request.patientid !== userid) {
-      return res.status(403).json({
-        message: "You are not allowed to cancel this request."
-      });
-    }
- 
-    if (request.Status === "Canceled") {
-      return res.status(409).json({
-        message: "This request is already canceled."
-      });
-    }
- 
-    if (request.Status === "Approved") {
-      return res.status(409).json({
-        message: "Approved requests can't be canceled here. Contact support."
-      });
-    }
- 
-    request.Status = "Canceled";
-    await request.save();
- 
-    return res.status(200).json({
-      message: "Test request canceled.",
-      testRequest: request
-    });
- 
-  } catch (e) {
-    return res.status(500).json({
-      message: "Error canceling test request",
-      error: e.message
-    });
-  }
+// Create booking
+router.post("/", newRequestMiddleware, (req, res) => {
+  return res.status(201).json({
+    message: "Test request created",
+    data: req.testRequest,
+  });
 });
+
+// List my bookings
+router.get("/mine", listMyRequests, (req, res) => {
+  return res.status(200).json({
+    message: "Your test requests",
+    data: req.testRequests,
+  });
+});
+
+// Cancel
+router.patch("/:id/cancel", cancelRequest, (req, res) => {
+  return res.status(200).json({
+    message: "Test request canceled.",
+    data: req.testRequest,
+  });
+});
+
+export default router;
