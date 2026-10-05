@@ -1,0 +1,114 @@
+.flex{
+
+    display:flex;
+
+}
+
+.flex-center{
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+}
+
+.hidden{
+
+    display:none;
+
+}
+
+.text-center{
+
+    text-align:center;
+
+}    variable::root{
+
+    /* ===========================
+       COLORS
+    ============================ */
+
+    --primary:#7B2EFF;
+    --primary-hover:#6524DF;
+
+    --secondary:#26D7C4;
+
+    --background:#F8F8FC;
+
+    --surface:#FFFFFF;
+
+    --text:#222222;
+
+    --text-light:#666666;
+
+    --border:#ECECEC;
+
+   
+    --primary-dark:#6524DF;
+
+    --shadow:
+        0 15px 40px rgba(0,0,0,.08);
+
+    --shadow-hover:
+        0 20px 45px rgba(123,46,255,.18);
+
+
+
+    /* ===========================
+       SHADOWS
+    ============================ */
+
+    --shadow-small:
+    0 8px 20px rgba(0,0,0,.08);
+
+    --shadow-medium:
+    0 12px 30px rgba(0,0,0,.12);
+
+    --shadow-large:
+    0 20px 50px rgba(0,0,0,.18);
+
+
+
+    /* ===========================
+       BORDER RADIUS
+    ============================ */
+
+    --radius-small:12px;
+
+    --radius-medium:20px;
+
+    --radius-large:32px;
+
+    --radius-pill:999px;
+
+
+
+    /* ===========================
+       TRANSITIONS
+    ============================ */
+
+    --transition:.3s ease;
+
+
+
+    /* ===========================
+       LAYOUT
+    ============================ */
+
+    --container-width:1400px;
+
+   
+
+    --section-padding:
+        clamp(5rem,8vw,8rem);
+
+    --radius-large:30px;
+
+    --radius-medium:20px;
+
+    --transition:.3s ease;
+
+
+}   

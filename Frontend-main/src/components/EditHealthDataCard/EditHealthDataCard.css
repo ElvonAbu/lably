@@ -1,0 +1,106 @@
+.edit-health-overlay{
+  position:fixed;
+  inset:0;
+  width:100%;
+  height:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  padding:1.2rem;
+  background:rgba(20,12,36,.45);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  z-index:99999;
+  box-sizing:border-box;
+}
+
+.edit-health-card{
+  position:relative;
+  z-index:100000;
+  width:min(92vw,440px);
+  max-height:min(80vh,620px);
+  overflow-y:auto;
+  background:var(--surface,#fff);
+  border-radius:28px;
+  padding:clamp(1.8rem,4vw,2.6rem);
+  text-align:center;
+  box-shadow:0 24px 60px rgba(20,12,36,.25);
+  box-sizing:border-box;
+  animation:editHealthIn .25s ease;
+  scrollbar-width:thin;
+  scrollbar-color:rgba(120,110,140,.35) transparent;
+}
+.edit-health-card::-webkit-scrollbar{ width:5px; }
+.edit-health-card::-webkit-scrollbar-track{ background:transparent; }
+.edit-health-card::-webkit-scrollbar-thumb{
+  background:rgba(120,110,140,.35);
+  border-radius:999px;
+}
+.edit-health-card::-webkit-scrollbar-thumb:hover{
+  background:rgba(120,110,140,.55);
+}
+
+@keyframes editHealthIn{
+  from{ opacity:0; transform:translateY(10px) scale(.98); }
+  to{ opacity:1; transform:translateY(0) scale(1); }
+}
+
+.edit-health-illustration{
+  width:clamp(150px,32vw,210px);
+  margin:0 auto clamp(1rem,2vw,1.4rem);
+  display:block;
+}
+
+.edit-health-title{
+  font-size:clamp(1.2rem,3vw,1.5rem);
+  font-weight:700;
+  color:#1F1147;
+  margin:0 0 clamp(.5rem,1vw,.8rem);
+  line-height:1.35;
+}
+
+.edit-health-description{
+  color:var(--text-light);
+  font-size:clamp(.85rem,.3vw + .8rem,1rem);
+  line-height:1.5;
+  margin-bottom:clamp(1.4rem,2.5vw,1.8rem);
+}
+
+.edit-health-card > .btn-primary{
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  height:clamp(38px,7vw,50px);
+  font-size:clamp(.78rem,.3vw + .72rem,.95rem);
+}
+
+.edit-health-secondary-btn{
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  margin-top:clamp(.5rem,1.2vw,.7rem);
+  background:none;
+  border:none;
+  color:#999;
+  font-family:inherit;
+  font-size:clamp(.7rem,.3vw + .66rem,.85rem);
+  padding:.35rem;
+  cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:color var(--transition);
+}
+
+.edit-health-secondary-btn:hover,
+.edit-health-secondary-btn:active,
+.edit-health-secondary-btn:focus-visible{
+  color:#666;
+}
+
+@media(max-width:197px){
+  .edit-health-card{padding:.55rem;}
+  .edit-health-illustration{width:90px; margin-bottom:.35rem;}
+  .edit-health-title{font-size:.68rem; margin-bottom:.25rem;}
+  .edit-health-description{font-size:.5rem; line-height:1.3; margin-bottom:.5rem;}
+  .edit-health-card > .btn-primary{height:28px; font-size:.52rem;}
+  .edit-health-secondary-btn{font-size:.48rem; margin-top:.3rem;}
+}

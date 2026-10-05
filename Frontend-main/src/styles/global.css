@@ -1,0 +1,80 @@
+/* ===========================
+   CONTAINER
+=========================== */
+.container{
+    width:min(92%, var(--container-width));
+    margin-inline:auto;
+}
+
+/* ===========================
+   FONT SAFETY NET
+=========================== */
+html,
+body,
+input,
+textarea,
+button,
+select{
+    font-family:"Poppins",sans-serif;
+}
+
+/* ===========================
+   SECTION SPACING
+=========================== */
+.section{
+    padding-block:clamp(4rem,7vw,8rem);
+}
+/* ===========================
+   BUTTON
+=========================== */
+.btn-primary{
+    display:inline-flex;
+    justify-content:center;
+    align-items:center;
+    padding:clamp(.75rem,.5rem + 1vw,1.2rem) clamp(1.5rem,1rem + 2.5vw,2.8rem);
+    border:none;
+    border-radius:999px;
+    min-height:clamp(42px,3rem + 1vw,62px);
+    background:var(--primary);
+    color:white;
+    font-family:"Poppins",sans-serif;
+    font-size:clamp(.85rem,.7rem + .4vw,1.05rem);
+    font-weight:600;
+    cursor:pointer;
+    transition:
+    transform var(--transition),
+    background var(--transition),
+    box-shadow var(--transition);
+}
+.btn-primary:hover{
+    background:var(--primary-hover);
+    transform:translateY(-2px) scale(1.05);
+    box-shadow:var(--shadow-medium);
+}
+.btn-primary:disabled{
+
+    opacity:.5;
+
+    cursor:not-allowed;
+
+    transform:none !important;
+
+    box-shadow:none !important;
+
+    background:var(--primary) !important;
+
+}
+/* ===========================
+   IMAGE
+=========================== */
+img{
+    display:block;
+    max-width:100%;
+}
+/* ===========================
+   LINKS
+=========================== */
+a{
+    text-decoration:none;
+    color:inherit;
+}
