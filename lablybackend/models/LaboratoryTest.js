@@ -1,26 +1,16 @@
 import mongoose from "mongoose";
 
 const Labtest=new mongoose.Schema({
-        Testname:{
+        testname:{
             type:String,
             required:true,
             minLenght:5,
+            trim:true
         },
-        RecommendedLabfee:{
-            type:Number,
+        technicalname:{
+            type:String,
             required:true,
-        },
-        ScientistFee:{
-            type:Number,
-            required:true
-        },
-        AppCommision:{
-            type:Number,
-            required:true
-        },
-        TotalPrice:{
-            type:Number,
-            required:true
+            trim:true
         }
     
 });

@@ -1,6 +1,7 @@
 import {
   useState,
   useEffect,
+  useLayoutEffect,
   useCallback,
 } from "react";
 
@@ -11,7 +12,13 @@ import {
 
 import "./Home.css";
 
-import Map from "../components/Map/Map";
+import { getAccuratePosition } from "../utils/getAccuratePosition";
+
+import {
+  useMapConfig,
+  NIGERIA_CENTER,
+  NIGERIA_ZOOM,
+} from "../context/MapContext";
 
 import FloatingButtons
   from "../components/FloatingButtons/FloatingButtons";
@@ -26,20 +33,12 @@ import LocationHelpCard
   from "../components/LocationHelpCard/LocationHelpCard";
 
 import { useSignOut }
-  from "../hooks/useSignOut";
+  from "../hooks/UseSignOut";
 
 import { useLocationPermission }
   from "../hooks/UseLocationPermission";
 
 
-const NIGERIA_CENTER = {
-  longitude: 8.6753,
-  latitude: 9.0820,
-};
-
-const NIGERIA_ZOOM = 5.4;
-
-const GPS_TIMEOUT_MS = 3000;
 
 const AUTO_NAVIGATE_KEY = "lably_auto_navigate_done";
 
@@ -75,6 +74,30 @@ function Home() {
   } = useSignOut();
 
   const { permissionState } = useLocationPermission();
+
+  const { setMapConfig } = useMapConfig();
+
+  // Idle Nigeria-wide view: no puck, no GPS watch, no callbacks.
+  // Layout effect so the map is repositioned before the screen paints.
+  useLayoutEffect(() => {
+    setMapConfig({
+      longitude: NIGERIA_CENTER.longitude,
+      latitude: NIGERIA_CENTER.latitude,
+      zoom: NIGERIA_ZOOM,
+      sessionKey: "home",
+      showMarker: false,
+      live: false,
+      trackGps: false,
+      draggableMarker: true,
+      onLocationChange: null,
+      onPermissionDenied: null,
+      mode: "idle",
+      bottomPadding: 0,
+      userPuck: false,
+      riders: [],
+      scientist: null,
+    });
+  }, [setMapConfig]);
 
   const [locationError, setLocationError] = useState("");
   const [showLocationHelp, setShowLocationHelp] = useState(false);
@@ -135,8 +158,8 @@ function Home() {
     // request even starts.
     queueMicrotask(() => setIsLocating(true));
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
+    getAccuratePosition()
+      .then((position) => {
         setIsLocating(false);
         setDeviceLocationBlocked(false);
         setShowLocationHelp(false);
@@ -149,17 +172,11 @@ function Home() {
             auto: true,
           },
         });
-      },
-      () => {
+      })
+      .catch(() => {
         setIsLocating(false);
         sessionStorage.removeItem(AUTO_NAVIGATE_KEY);
-      },
-      {
-        enableHighAccuracy: false,
-        timeout: GPS_TIMEOUT_MS,
-        maximumAge: 0,
-      }
-    );
+      });
   }, [permissionState, cameFromLocationSearch, navigate]);
 
 
@@ -169,26 +186,38 @@ function Home() {
     if (!("geolocation" in navigator)) return;
 
     let cancelled = false;
+    let recovering = false;
 
     const tryRecover = () => {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          if (cancelled) return;
+        () => {
+          if (cancelled || recovering) return;
+          recovering = true;
+          clearInterval(intervalId);
 
-          setDeviceLocationBlocked(false);
-          setShowLocationHelp(false);
-          setLocationError("");
-          setIsLocating(false);
-          setDismissed(false);
-          sessionStorage.setItem(AUTO_NAVIGATE_KEY, "1");
+          // permission is back: now get a properly accurate fix
+          getAccuratePosition()
+            .then((position) => {
+              if (cancelled) return;
 
-          navigate("/location-search", {
-            state: {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-              auto: true,
-            },
-          });
+              setDeviceLocationBlocked(false);
+              setShowLocationHelp(false);
+              setLocationError("");
+              setIsLocating(false);
+              setDismissed(false);
+              sessionStorage.setItem(AUTO_NAVIGATE_KEY, "1");
+
+              navigate("/location-search", {
+                state: {
+                  lat: position.coords.latitude,
+                  lng: position.coords.longitude,
+                  auto: true,
+                },
+              });
+            })
+            .catch(() => {
+              recovering = false;
+            });
         },
         () => {},
         {
@@ -199,8 +228,9 @@ function Home() {
       );
     };
 
+    let intervalId = null;
     tryRecover();
-    const intervalId = setInterval(tryRecover, 1000);
+    intervalId = setInterval(tryRecover, 1000);
 
     const onForeground = () => {
       if (document.visibilityState === "visible") {
@@ -245,8 +275,8 @@ function Home() {
 
     setIsLocating(true);
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
+    getAccuratePosition()
+      .then((position) => {
         setIsLocating(false);
         setDeviceLocationBlocked(false);
 
@@ -257,19 +287,13 @@ function Home() {
             auto: true,
           },
         });
-      },
-      () => {
+      })
+      .catch(() => {
         setIsLocating(false);
         setDeviceLocationBlocked(true);
         setDismissed(false);
         setShowLocationHelp(false);
-      },
-      {
-        enableHighAccuracy: false,
-        timeout: GPS_TIMEOUT_MS,
-        maximumAge: 0,
-      }
-    );
+      });
   }, [navigate, isLocating]);
 
 
@@ -290,8 +314,8 @@ function Home() {
 
     setIsLocating(true);
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
+    getAccuratePosition()
+      .then((position) => {
         setIsLocating(false);
         setDeviceLocationBlocked(false);
         setShowLocationHelp(false);
@@ -304,8 +328,8 @@ function Home() {
             auto: true,
           },
         });
-      },
-      (error) => {
+      })
+      .catch((error) => {
         console.log("LABLY Use My Location:", error);
         setIsLocating(false);
 
@@ -322,13 +346,7 @@ function Home() {
         setLocationError(
           "Couldn't detect your location right now. Try again, or skip for now."
         );
-      },
-      {
-        enableHighAccuracy: false,
-        timeout: 8000,
-        maximumAge: 0,
-      }
-    );
+      });
   }, [navigate, isLocating, deviceLocationBlocked]);
 
 
@@ -351,20 +369,12 @@ function Home() {
 
 
   return (
-    <div className="home">
+    <>
       {logoutError && (
         <p className="home-toast home-toast-error">
           {logoutError}
         </p>
       )}
-
-      <Map
-        showMarker={false}
-        longitude={NIGERIA_CENTER.longitude}
-        latitude={NIGERIA_CENTER.latitude}
-        zoom={NIGERIA_ZOOM}
-        trackGps={false}
-      />
 
       <FloatingButtons
         variant="home"
@@ -391,7 +401,7 @@ function Home() {
           onClose={() => setShowLocationHelp(false)}
         />
       )}
-    </div>
+    </>
   );
 }
 

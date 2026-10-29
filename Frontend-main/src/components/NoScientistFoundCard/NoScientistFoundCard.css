@@ -1,0 +1,191 @@
+.no-scientist-page {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  overflow-y: auto;
+  padding: clamp(1.25rem, 5vh, 3rem) 1.25rem;
+  background: var(--surface, #fff);
+  pointer-events: auto;
+  animation: noScientistFadeIn .25s ease-out;
+}
+
+.no-scientist-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(100%, 440px);
+  text-align: center;
+}
+
+.no-scientist-artwork {
+  display: block;
+  width: min(100%, 440px);
+  max-height: min(50vh, 460px);
+  object-fit: contain;
+  margin: 0 auto clamp(1.25rem, 4vh, 2rem);
+}
+
+.no-scientist-eyebrow {
+  margin: 0 0 clamp(.6rem, 2vh, 1rem);
+  color: var(--primary, #7b2cff);
+  font-size: 50px;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+.no-scientist-title {
+  max-width: 26ch;
+  margin: 0 0 1.4rem;
+  color: var(--text, #211b2b);
+  font-size: clamp(1rem, 3.4vw, 1.25rem);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+ .no-scientist-feedback {
+  max-width: 34ch;
+  margin: .9rem 0 0;
+  color: var(--text-light, #77717f);
+  font-size: .9rem;
+  line-height: 1.45;
+}
+
+.no-scientist-waitlist-button {
+  width: min(100%, 320px);
+  min-height: 52px;
+  border: 0;
+  border-radius: 999px;
+  padding: .9rem 1.4rem;
+  background: var(--primary, #7b2cff);
+  color: #fff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(123, 46, 255, .22);
+  transition: transform .15s ease, background .15s ease;
+}
+
+.no-scientist-waitlist-button:hover {
+  background: var(--primary-hover, #681be6);
+}
+
+.no-scientist-waitlist-button:active { transform: scale(.98); }
+.no-scientist-waitlist-button:focus-visible {
+  outline: 3px solid rgba(123, 46, 255, .35);
+  outline-offset: 3px;
+}
+
+@keyframes noScientistFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-height: 650px) {
+  .no-scientist-page { padding-top: 1rem; padding-bottom: 1rem; }
+  .no-scientist-artwork { width: min(76%, 300px); max-height: 34vh; margin-bottom: .8rem; }
+  .no-scientist-feedback { margin-top: .6rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .no-scientist-page { animation: none; }
+  .no-scientist-check-circle,
+  .no-scientist-check-mark { animation: none; stroke-dashoffset: 0; opacity: 1; }
+  .no-scientist-waitlist-button { transition: none; }
+}
+
+/* ---- joined: drawn check mark (same look as Password Updated) ----
+   Kept deliberately simple so it is smooth on phones: no scaling animation
+   (it forces the browser to redraw the SVG every frame), a flat start on the
+   circle (no dot before it begins) and GPU layers for the two strokes. */
+.no-scientist-check-wrapper {
+  width: clamp(90px, 16vw, 130px);
+  height: clamp(90px, 16vw, 130px);
+  margin-bottom: clamp(1.2rem, 3vw, 1.8rem);
+  transform: translateZ(0);
+}
+
+.no-scientist-check-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.no-scientist-check-circle {
+  stroke: var(--primary, #7b2cff);
+  /* 102 is slightly more than the full circle (100), so the end of the
+     stroke overlaps its start and no hairline gap can show */
+  stroke-dasharray: 102 102;
+  stroke-dashoffset: 102;
+  stroke-linecap: butt;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  will-change: stroke-dashoffset;
+  animation: noScientistDrawCircle .7s cubic-bezier(.4, 0, .2, 1) .15s forwards;
+}
+
+@keyframes noScientistDrawCircle {
+  from { stroke-dashoffset: 102; }
+  to { stroke-dashoffset: 0; }
+}
+
+.no-scientist-check-mark {
+  stroke: var(--primary, #7b2cff);
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  will-change: stroke-dashoffset;
+  animation: noScientistDrawMark .35s ease-out .8s both;
+}
+
+/* hidden until the stroke really starts, so no dot shows beforehand */
+@keyframes noScientistDrawMark {
+  0% { opacity: 0; stroke-dashoffset: 100; }
+  1% { opacity: 1; stroke-dashoffset: 100; }
+  100% { opacity: 1; stroke-dashoffset: 0; }
+}
+
+@keyframes noScientistDraw {
+  from { opacity: 1; stroke-dashoffset: 100; }
+  to { opacity: 1; stroke-dashoffset: 0; }
+}
+
+
+
+.no-scientist-joined .no-scientist-title { margin-bottom: .5rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .no-scientist-check-circle,
+  .no-scientist-check-mark { animation: none; stroke-dashoffset: 0; opacity: 1; }
+}
+
+/* Log out: a quiet text button that turns red on hover */
+.no-scientist-logout {
+  margin-top: 1.8rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-light, #77717f);
+  font: inherit;
+  font-size: .95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color .2s ease;
+}
+
+.no-scientist-logout:hover,
+.no-scientist-logout:focus-visible {
+  color: #e5251b;
+}
+
+.no-scientist-logout:disabled {
+  opacity: .6;
+  cursor: default;
+}

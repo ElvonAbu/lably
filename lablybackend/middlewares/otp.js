@@ -36,6 +36,46 @@ const supabaseAdmin = createClient(
   }
 );
 
+/*
+|--------------------------------------------------------------------------
+| SEND WELCOME EMAIL
+|--------------------------------------------------------------------------
+*/
+
+async function sendWelcomeEmail(useremail) {
+
+  const { data, error } =
+    await resend.emails.send({
+
+      from: "Lably <Onboarding@mylably.com>",
+
+      to: [useremail],
+
+      subject: "Welcome to Lably 🎉",
+
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto">
+
+          <h2>Welcome to Lably!</h2>
+
+          <p>Your email has been verified and your account is ready.</p>
+
+          <p style="color:#888;font-size:12px;margin-top:24px">
+            If you didn't create this account, you can ignore this email.
+          </p>
+
+        </div>
+      `
+    });
+
+  if (error) {
+    console.error("WELCOME EMAIL ERROR:", error);
+    return null;
+  }
+
+  return data;
+}
+
 
 /*
 |--------------------------------------------------------------------------
@@ -229,6 +269,8 @@ export default async function VerifyOTP(
     |--------------------------------------------------------------------------
     */
 
+    const firstTimeVerified = !user.emailVerified;
+
     user.emailVerified =
       true;
 
@@ -246,6 +288,14 @@ export default async function VerifyOTP(
       _id:
         otpRecord._id,
     });
+
+
+
+    if (firstTimeVerified) {
+      sendWelcomeEmail(normalizedEmail).catch((err) =>
+        console.error("Welcome email failed:", err)
+      );
+    }
 
 
     /*

@@ -25,6 +25,8 @@ import verifyidentity from "./routes/Identityverification.js";
 import Forgotpassword from "./routes/ForgotPassword.js";
 import otp from "./routes/otp.js";
 import userlocation from "./routes/userlocation.js";
+import patientdetails from "./routes/patientdetails.js";
+import Testrequest from "./routes/Testrequest.js";
 
 // === CHANGED (Claude): serve HTTPS using the same shared cert as the
 // Vite frontend (see /certs/README.md). Once the frontend runs on
@@ -85,14 +87,18 @@ app.use(
 );
 // === END CHANGED ===
 
-
-app.use("/login",Loginroute);
-app.use("/signup",Signuproute);
 // app.use("/verify",verifyidentity);
-app.use("/verifyemailaddress",otp);
-app.use("/forgotpassword",Forgotpassword);
-app.use("/userlocation",userlocation);
+app.use("/login", Loginroute);
+app.use("/signup", Signuproute);
+app.use("/verifyemailaddress", otp);
+app.use("/forgotpassword", Forgotpassword);
+app.use("/userlocation", userlocation);
 
+// Patient details
+app.use("/patientdetails", patientdetails);
+
+// Test requests
+app.use("/testrequest", Testrequest);
 
 
 app.get("/",(req,res)=>{

@@ -43,6 +43,8 @@
 
 .map-container {
 
+    touch-action: none; /* pinch never zooms the page */
+
     position: absolute;
 
     inset: 0;
@@ -574,5 +576,352 @@
         transition: none;
 
     }
+
+}
+
+/* ==================================================
+   REQUEST PUCK — "you are here"
+
+   The wrapper centre is the exact coordinate: the dot sits
+   on it, the ripples spread from it, the tag floats above.
+================================================== */
+
+.user-pin {
+
+    position: absolute;
+
+    inset: 0;
+
+    pointer-events: none;
+
+    --pin-purple: #7A11F1;
+
+}
+
+
+.user-pin-ripple {
+
+    position: absolute;
+
+    left: 50%;
+
+    top: 50%;
+
+    width: 120px;
+
+    height: 120px;
+
+    margin: -60px 0 0 -60px;
+
+    border-radius: 50%;
+
+    border: 1.5px solid rgba(122, 17, 241, .35);
+
+    background: rgba(122, 17, 241, .12);
+
+    opacity: 0;
+
+    transform: scale(.2);
+
+}
+
+
+.user-pin-searching .user-pin-ripple {
+
+    animation: userPinRipple 2.4s cubic-bezier(.2, .6, .35, 1) infinite;
+
+}
+
+
+.user-pin-searching .user-pin-ripple-delay {
+
+    animation-delay: 1.2s;
+
+}
+
+
+/* found / idle: no ring at all */
+.user-pin:not(.user-pin-searching) .user-pin-ripple {
+
+    display: none;
+
+}
+
+
+@keyframes userPinRipple {
+
+    0% {
+
+        opacity: .9;
+
+        transform: scale(.2);
+
+    }
+
+
+    100% {
+
+        opacity: 0;
+
+        transform: scale(1);
+
+    }
+
+}
+
+
+.user-pin-dot {
+
+    position: absolute;
+
+    left: 50%;
+
+    top: 50%;
+
+    width: 26px;
+
+    height: 26px;
+
+    margin: -13px 0 0 -13px;
+
+    box-sizing: border-box;
+
+    border-radius: 50%;
+
+    background:
+        radial-gradient(
+            circle at 35% 30%,
+            #A45CF8 0%,
+            #7A11F1 60%,
+            #5A0BBA 100%
+        );
+
+    border: 4px solid #fff;
+
+    box-shadow:
+        0 2px 6px rgba(30, 8, 70, .45),
+        0 0 0 1px rgba(30, 8, 70, .10);
+
+}
+
+
+.user-pin-searching .user-pin-dot {
+
+    animation: userPinBeat 1.5s ease-in-out infinite;
+
+}
+
+
+@keyframes userPinBeat {
+
+    0%,
+    100% {
+
+        transform: scale(1);
+
+    }
+
+
+    50% {
+
+        transform: scale(1.09);
+
+    }
+
+}
+
+
+/* ==================================================
+   SCIENTIST MARKER — top-down motorbike with a rider
+   carrying a lab sample box. Rotates to face the way
+   it is travelling; purple to match the LABLY pin.
+================================================== */
+
+.rider-marker {
+
+    position: relative;
+
+    width: 44px;
+
+    height: 44px;
+
+    pointer-events: none;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    animation:
+        riderIn
+        .45s
+        cubic-bezier(.2, .9, .3, 1.2)
+        both;
+
+}
+
+
+.rider-marker-pulse {
+
+    position: absolute;
+
+    inset: 4px;
+
+    border-radius: 50%;
+
+    background: rgba(122, 17, 241, .22);
+
+    animation: riderPulse 2s ease-out infinite;
+
+}
+
+
+.rider-marker-bike {
+
+    position: relative;
+
+    width: 30px;
+
+    height: 48px;
+
+    filter:
+        drop-shadow(0 4px 5px rgba(30, 8, 70, .4));
+
+    transition:
+        transform .5s linear;
+
+}
+
+
+.rider-marker-bike svg {
+
+    display: block;
+
+    width: 100%;
+
+    height: 100%;
+
+}
+
+
+@keyframes riderPulse {
+
+    0% {
+
+        transform: scale(.7);
+
+        opacity: .8;
+
+    }
+
+
+    100% {
+
+        transform: scale(2.3);
+
+        opacity: 0;
+
+    }
+
+}
+
+
+@keyframes riderIn {
+
+    from {
+
+        opacity: 0;
+
+        transform: scale(.4);
+
+    }
+
+
+    to {
+
+        opacity: 1;
+
+        transform: scale(1);
+
+    }
+
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+
+    .user-pin-ripple,
+
+    .user-pin-dot,
+
+    .rider-marker,
+
+    .rider-marker-pulse {
+
+        animation: none;
+
+    }
+
+}
+
+
+/* ==================================================
+   PUCK PIN (the user's location pin)
+   Tip of the pin = the real map point (centre of the wrapper).
+   To change the size, change width / height below
+   (keep the ratio 36 : 44).
+================================================== */
+
+.puck-pin {
+
+    position: absolute;
+
+    left: 50%;
+
+    bottom: 50%;
+
+    z-index: 5;
+
+    width: 26px;
+
+    height: 32px;
+
+    transform: translateX(-50%);
+
+    transform-origin: 50% 100%;
+
+    pointer-events: none;
+
+    user-select: none;
+
+    filter: drop-shadow(0 2px 3px rgba(40, 10, 90, .35));
+
+}
+
+.puck-pin-live {
+
+    animation: puckPinFloat 2.2s ease-in-out infinite;
+
+}
+
+@keyframes puckPinFloat {
+
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+
+    50% { transform: translateX(-50%) translateY(-3px); }
+
+}
+
+.user-pin-searching .puck-pin {
+
+    animation: puckPinFloat 1.5s ease-in-out infinite;
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .puck-pin-live,
+    .user-pin-searching .puck-pin { animation: none; }
 
 }

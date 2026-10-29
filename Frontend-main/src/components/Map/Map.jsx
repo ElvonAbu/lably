@@ -1,6 +1,7 @@
 import {
     useCallback,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -9,6 +10,9 @@ import {
 import Map, {
     Marker,
 } from "react-map-gl";
+
+import RiderMarker from "./RiderMarker";
+import PuckPin from "./PuckPin";
 
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./Map.css";
@@ -23,6 +27,99 @@ const DEFAULT_ZOOM = 15.8;
 const CLOSE_ZOOM = 16.4;
 
 const JITTER_THRESHOLD_METERS = 6;
+
+
+/* ==================================================
+   REQUEST CAMERA (searching for a scientist)
+
+   mode "idle"      → normal map behaviour
+   mode "searching" → street-level zoom, then a slow,
+                      linear zoom-out for the whole
+                      search time (inDrive style)
+   mode "found"     → camera fits puck + scientist
+================================================== */
+
+const SEARCH_START_ZOOM = 16.2;
+
+const SEARCH_END_ZOOM = 14.3;
+
+const SEARCH_INTRO_MS = 700;
+
+const FOUND_MAX_ZOOM = 16.5;
+
+// Never zoom out further than this when fitting the scientist, so a bad
+// position can never send the map out to the world / globe view.
+// Fixes less accurate than this (metres) are ignored: they come from the
+// IP address and can put you in the wrong city.
+const MAX_USABLE_ACCURACY_M = 1500;
+
+const FOUND_MIN_ZOOM = 14.2;
+
+// Zoom the camera hands back at when a request ends.
+const RESTORE_MIN_ZOOM = 15;
+
+const ZERO_PADDING = {
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+};
+
+const EMPTY_RIDERS = [];
+
+const linear = (t) => t;
+
+function toMercator(lng, lat) {
+
+    const x = (lng + 180) / 360;
+
+    const sin = Math.sin(
+        lat * Math.PI / 180
+    );
+
+    const y =
+        0.5 -
+        Math.log((1 + sin) / (1 - sin)) /
+        (4 * Math.PI);
+
+    return { x, y };
+}
+
+/*
+ * Highest zoom at which `other` is still on screen when `centre` sits
+ * in the middle of the visible area (Mapbox world size = 512 * 2^zoom).
+ */
+function zoomToContain(
+    centre,
+    other,
+    halfWidthPx,
+    halfHeightPx
+) {
+
+    const a = toMercator(centre.lng, centre.lat);
+
+    const b = toMercator(other.lng, other.lat);
+
+    const dx = Math.abs(a.x - b.x);
+
+    const dy = Math.abs(a.y - b.y);
+
+    const zx =
+        dx > 0
+            ? Math.log2(halfWidthPx / (512 * dx))
+            : Infinity;
+
+    const zy =
+        dy > 0
+            ? Math.log2(halfHeightPx / (512 * dy))
+            : Infinity;
+
+    const fit = Math.min(zx, zy, FOUND_MAX_ZOOM);
+
+    return Number.isFinite(fit)
+        ? Math.max(fit, FOUND_MIN_ZOOM)
+        : FOUND_MAX_ZOOM;
+}
 
 
 /* ==================================================
@@ -91,6 +188,8 @@ function MapComponent({
 
     locationZoom = CLOSE_ZOOM,
 
+
+    sessionKey,
     showMarker = true,
 
     live = false,
@@ -100,6 +199,20 @@ function MapComponent({
     draggableMarker = true,
 
     markerSize = 72,
+
+    mode = "idle",
+
+    bottomPadding = 0,
+
+    searchDurationMs = 60000,
+
+    searchEndZoom = SEARCH_END_ZOOM,
+
+    userPuck = false,
+
+    riders = EMPTY_RIDERS,
+
+    scientist = null,
 
     onLocationChange,
 
@@ -115,6 +228,50 @@ function MapComponent({
 
 
     const watchIdRef =
+        useRef(null);
+
+
+    /*
+     * While a request is open the puck must stay exactly where the user
+     * confirmed it. The GPS watcher keeps running (so it never has to be
+     * restarted, which used to snap the pin to a coarse first fix), but its
+     * fixes are ignored until the request ends.
+     */
+    const requestActiveRef =
+        useRef(mode !== "idle");
+
+    /* Stop the BROWSER from zooming the whole page while the map screen is
+       open (pinch on a phone, pinch / ctrl+scroll on a trackpad). The map
+       does its own zooming; during a search it is locked on purpose, and in
+       that state the gesture used to fall through and zoom the page. */
+    useEffect(() => {
+        const blockWheelZoom = (event) => {
+            if (event.ctrlKey) event.preventDefault();
+        };
+        const blockGesture = (event) => event.preventDefault();
+
+        document.addEventListener("wheel", blockWheelZoom, { passive: false });
+        document.addEventListener("gesturestart", blockGesture);
+        document.addEventListener("gesturechange", blockGesture);
+
+        return () => {
+            document.removeEventListener("wheel", blockWheelZoom);
+            document.removeEventListener("gesturestart", blockGesture);
+            document.removeEventListener("gesturechange", blockGesture);
+        };
+    }, []);
+
+    useEffect(() => {
+
+        requestActiveRef.current =
+            mode !== "idle";
+
+    });
+
+    const bestAccuracyRef =
+        useRef(null);
+
+    const lastAcceptedAccuracyRef =
         useRef(null);
 
 
@@ -162,6 +319,17 @@ function MapComponent({
         useState(null);
 
 
+    /*
+     * The request camera needs a ready map. Re-runs when the
+     * map finishes loading, in case a request was already open.
+     */
+    const [
+        mapLoaded,
+        setMapLoaded
+    ] =
+        useState(false);
+
+
     const [
         hasLiveLocation,
         setHasLiveLocation
@@ -169,6 +337,56 @@ function MapComponent({
         useState(
             () => live
         );
+
+
+    /* ==================================================
+       PERSISTENT MAP: RESET PER PAGE
+
+       When one Map instance is shared between pages, its
+       live-GPS state would otherwise leak from one page to
+       the next (e.g. the re-center button showing on Home).
+       When `sessionKey` changes, reset to exactly what a
+       fresh mount would have given.
+    ================================================== */
+    const [
+        prevSessionKey,
+        setPrevSessionKey
+    ] =
+        useState(
+            sessionKey
+        );
+
+    if (
+        sessionKey !==
+        prevSessionKey
+    ) {
+        setPrevSessionKey(
+            sessionKey
+        );
+
+        setLiveCoords(
+            null
+        );
+
+        setAccuracy(
+            null
+        );
+
+        setSelectedCoords({
+            lng:
+                longitude,
+            lat:
+                latitude,
+        });
+
+        setHasLiveLocation(
+            live
+        );
+
+        setIsFollowingUser(
+            true
+        );
+    }
 
 
     /* ==================================================
@@ -185,6 +403,10 @@ function MapComponent({
                 mapRef.current.resize();
 
             }
+
+            setMapLoaded(
+                true
+            );
 
         };
 
@@ -260,6 +482,59 @@ function MapComponent({
         useRef(live);
 
 
+
+    const previousFlySessionKeyRef =
+        useRef(sessionKey);
+
+    /* ==================================================
+       PERSISTENT MAP: SNAP CAMERA ON PAGE CHANGE
+
+       A fresh mount used to start the camera exactly
+       where the page wanted it (initialViewState). With a
+       shared map we must do the same: jump (no animation)
+       to the new page's view BEFORE the browser paints,
+       so there is no fly-across-the-country, no puck
+       appearing before the camera arrives, and no wait for
+       the first GPS fix on slow phones.
+    ================================================== */
+    const previousJumpSessionKeyRef =
+        useRef(sessionKey);
+
+    useLayoutEffect(() => {
+
+        if (
+            previousJumpSessionKeyRef.current ===
+            sessionKey
+        ) {
+            return;
+        }
+
+        previousJumpSessionKeyRef.current =
+            sessionKey;
+
+        if (
+            !mapRef.current ||
+            longitude == null ||
+            latitude == null
+        ) {
+            return;
+        }
+
+        mapRef.current.jumpTo({
+            center: [
+                longitude,
+                latitude,
+            ],
+            zoom,
+        });
+
+    }, [
+        sessionKey,
+        longitude,
+        latitude,
+        zoom,
+    ]);
+
     useEffect(() => {
 
         const longitudeChanged =
@@ -277,6 +552,14 @@ function MapComponent({
             live;
 
 
+        const sessionChanged =
+            previousFlySessionKeyRef.current !==
+            sessionKey;
+
+        previousFlySessionKeyRef.current =
+            sessionKey;
+
+
         previousLongitudeRef.current =
             longitude;
 
@@ -287,6 +570,14 @@ function MapComponent({
 
         previousLiveRef.current =
             live;
+
+        /* Page switch: the camera was already snapped
+           by the layout effect above. Do not also fly. */
+        if (
+            sessionChanged
+        ) {
+            return;
+        }
 
 
         if (
@@ -365,6 +656,7 @@ function MapComponent({
         longitude,
         latitude,
         live,
+        sessionKey,
     ]);
 
 
@@ -438,6 +730,12 @@ function MapComponent({
         lastAcceptedCoordsRef.current =
             null;
 
+        bestAccuracyRef.current =
+            null;
+
+        lastAcceptedAccuracyRef.current =
+            null;
+
 
         isFollowingUserRef.current =
             true;
@@ -468,6 +766,60 @@ function MapComponent({
 
                     const gpsAccuracy =
                         position.coords.accuracy;
+
+
+                    /* Request open: keep the pin where it is. */
+                    if (
+                        requestActiveRef.current
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    /*
+                     * A very rough fix (IP address / cell tower, often in
+                     * another city or country) is never used — not even as
+                     * the first fix. Keep waiting for a real one.
+                     */
+                    if (
+                        !Number.isFinite(gpsAccuracy) ||
+                        gpsAccuracy > MAX_USABLE_ACCURACY_M
+                    ) {
+
+                        return;
+
+                    }
+
+
+                    /*
+                     * Ignore a coarse (Wi-Fi / IP based) fix that arrives
+                     * after a precise one — it would drag the pin away.
+                     */
+                    const bestAccuracy =
+                        bestAccuracyRef.current;
+
+                    if (
+                        bestAccuracy !== null &&
+                        gpsAccuracy >
+                            Math.max(
+                                150,
+                                bestAccuracy * 3
+                            )
+                    ) {
+
+                        return;
+
+                    }
+
+                    bestAccuracyRef.current =
+                        bestAccuracy === null
+                            ? gpsAccuracy
+                            : Math.min(
+                                bestAccuracy,
+                                gpsAccuracy
+                            );
 
 
                     setAccuracy(
@@ -514,14 +866,25 @@ function MapComponent({
                         JITTER_THRESHOLD_METERS;
 
 
+                    /* A clearly more accurate fix is worth applying even if
+                       the point barely moved. */
+                    const betterFix =
+                        lastAcceptedAccuracyRef.current !== null &&
+                        gpsAccuracy <
+                            lastAcceptedAccuracyRef.current * 0.7;
+
                     if (
-                        !movedEnough
+                        !movedEnough &&
+                        !betterFix
                     ) {
 
                         return;
 
                     }
 
+
+                    lastAcceptedAccuracyRef.current =
+                        gpsAccuracy;
 
                     lastAcceptedCoordsRef.current =
                         coords;
@@ -946,12 +1309,307 @@ function MapComponent({
 
 
     /* ==================================================
+       REQUEST CAMERA DIRECTOR
+
+       Drives the camera while a request is open. The puck
+       stays fixed in the middle of the visible map (the
+       part not covered by the bottom sheet) while:
+
+         searching → zoom to street level, then ease out
+                     linearly over `searchDurationMs`
+         found     → zoom so puck + scientist both fit
+         idle      → hand the camera back at the zoom the
+                     user had before the request
+
+       Re-runs when the sheet height changes (e.g. the notes
+       box opens). In "searching" it continues the same
+       zoom-out for the time that is left, so it never
+       restarts or visibly jumps.
+    ================================================== */
+
+    const scientistRef =
+        useRef(scientist);
+
+    useEffect(() => {
+
+        scientistRef.current =
+            scientist;
+
+    });
+
+
+    const previousModeRef =
+        useRef("idle");
+
+    const restoreZoomRef =
+        useRef(null);
+
+    const searchStartedAtRef =
+        useRef(null);
+
+
+    const puckLng =
+        activeCoords.lng;
+
+    const puckLat =
+        activeCoords.lat;
+
+
+    useEffect(() => {
+
+        const map =
+            mapRef.current;
+
+        if (!map) {
+            return undefined;
+        }
+
+
+        const previousMode =
+            previousModeRef.current;
+
+        previousModeRef.current =
+            mode;
+
+
+        if (mode === "idle") {
+
+            if (previousMode !== "idle") {
+
+                map.easeTo({
+
+                    zoom:
+                        Math.max(
+                            restoreZoomRef.current ??
+                                map.getZoom(),
+                            RESTORE_MIN_ZOOM
+                        ),
+
+                    padding:
+                        ZERO_PADDING,
+
+                    duration:
+                        600,
+
+                    essential:
+                        true,
+
+                });
+
+                searchStartedAtRef.current =
+                    null;
+
+            }
+
+            return undefined;
+
+        }
+
+
+        if (previousMode === "idle") {
+
+            restoreZoomRef.current =
+                map.getZoom();
+
+            searchStartedAtRef.current =
+                performance.now();
+
+        }
+
+
+        const padding = {
+
+            top: 0,
+
+            right: 0,
+
+            left: 0,
+
+            bottom:
+                bottomPadding,
+
+        };
+
+        const center = [
+            puckLng,
+            puckLat,
+        ];
+
+
+        if (mode === "searching") {
+
+            let timer = null;
+
+            const startedAt =
+                searchStartedAtRef.current ??
+                performance.now();
+
+            const drift = () => {
+
+                const spent =
+                    Math.max(
+                        performance.now() - startedAt,
+                        SEARCH_INTRO_MS
+                    );
+
+                map.easeTo({
+
+                    center,
+
+                    zoom:
+                        searchEndZoom,
+
+                    padding,
+
+                    duration:
+                        Math.max(
+                            1000,
+                            searchDurationMs - spent
+                        ),
+
+                    easing:
+                        linear,
+
+                    essential:
+                        true,
+
+                });
+
+            };
+
+            if (
+                performance.now() - startedAt >=
+                SEARCH_INTRO_MS
+            ) {
+
+                drift();
+
+            } else {
+
+                map.easeTo({
+
+                    center,
+
+                    zoom:
+                        SEARCH_START_ZOOM,
+
+                    padding,
+
+                    duration:
+                        SEARCH_INTRO_MS,
+
+                    essential:
+                        true,
+
+                });
+
+                timer =
+                    setTimeout(
+                        drift,
+                        SEARCH_INTRO_MS
+                    );
+
+            }
+
+            return () => {
+
+                if (timer !== null) {
+                    clearTimeout(timer);
+                }
+
+            };
+
+        }
+
+
+        if (mode === "found") {
+
+            const rider =
+                scientistRef.current;
+
+            if (!rider) {
+                return undefined;
+            }
+
+            const container =
+                map.getContainer();
+
+            const halfWidth =
+                Math.max(
+                    container.clientWidth / 2 - 56,
+                    60
+                );
+
+            const halfHeight =
+                Math.max(
+                    (container.clientHeight - bottomPadding) / 2 - 64,
+                    60
+                );
+
+            map.easeTo({
+
+                center,
+
+                zoom:
+                    zoomToContain(
+                        { lng: puckLng, lat: puckLat },
+                        rider,
+                        halfWidth,
+                        halfHeight
+                    ),
+
+                padding,
+
+                duration:
+                    1400,
+
+                essential:
+                    true,
+
+            });
+
+        }
+
+        return undefined;
+
+    }, [
+        mode,
+        mapLoaded,
+        bottomPadding,
+        puckLng,
+        puckLat,
+        searchDurationMs,
+        searchEndZoom,
+    ]);
+
+
+    const isRequestActive =
+        mode !== "idle";
+
+    const isSearching =
+        mode === "searching";
+
+    /*
+     * Searching: every nearby rider. Found: only the scientist who
+     * accepted — same id as their searching marker, so it keeps gliding
+     * instead of being re-created.
+     */
+    const visibleRiders =
+        isSearching
+            ? riders
+            : mode === "found" && scientist
+                ? [scientist]
+                : EMPTY_RIDERS;
+
+
+    /* ==================================================
        RECENTER VISIBILITY
     ================================================== */
 
     const showRecenterButton =
         hasLiveLocation &&
-        !isFollowingUser;
+        !isFollowingUser &&
+        !isRequestActive;
 
 
     return (
@@ -991,19 +1649,19 @@ function MapComponent({
 
 
                 dragPan={
-                    true
+                    !isSearching
                 }
 
                 scrollZoom={
-                    true
+                    !isSearching
                 }
 
                 doubleClickZoom={
-                    true
+                    !isSearching
                 }
 
                 touchZoomRotate={
-                    true
+                    !isSearching
                 }
 
 
@@ -1081,42 +1739,84 @@ function MapComponent({
 
                         >
 
-                            <div
-                                className="marker-halo"
-                            />
+                            {userPuck ? (
 
-                            <div
-                                className="marker-sonar"
-                            />
+                                /*
+                                 * Request puck: a realistic location dot (purple
+                                 * core, white ring, soft shadow) with radar ripples.
+                                 */
 
-                            <div
-                                className=
-                                    "marker-sonar marker-sonar-delay"
-                            />
+                                <div
+                                    className={
+                                        isSearching
+                                            ? "user-pin user-pin-searching"
+                                            : "user-pin"
+                                    }
+                                >
 
-                            <div
+                                    <span className="user-pin-ripple" />
 
-                                className={
+                                    <span className="user-pin-ripple user-pin-ripple-delay" />
 
-                                    hasLiveLocation
+                                    <PuckPin />
 
-                                        ?
+                                </div>
 
-                                        "custom-marker custom-marker-live"
+                            ) : (
 
-                                        :
+                                <>
 
-                                        "custom-marker"
+                                    <div
+                                        className="marker-halo"
+                                    />
 
-                                }
+                                    <div
+                                        className="marker-sonar"
+                                    />
 
-                            />
+                                    <div
+                                        className=
+                                            "marker-sonar marker-sonar-delay"
+                                    />
+
+                                    <div
+
+                                        className={
+
+                                            hasLiveLocation
+
+                                                ?
+
+                                                "custom-marker custom-marker-live"
+
+                                                :
+
+                                                "custom-marker"
+
+                                        }
+
+                                    />
+
+                                </>
+
+                            )}
 
                         </div>
 
                     </Marker>
 
                 )}
+
+
+                {visibleRiders.map((rider) => (
+
+                    <RiderMarker
+                        key={rider.id}
+                        lng={rider.lng}
+                        lat={rider.lat}
+                    />
+
+                ))}
 
 
             </Map>

@@ -12,6 +12,7 @@ const ForgotPassword = lazy(() => import("./components/ForgotPassword/ForgotPass
 const ResetPassword = lazy(() => import("./components/ResetPassword/ResetPassword"));
 const PasswordUpdated = lazy(() => import("./components/PasswordUpdated/PasswordUpdated"));
 const LocationSearch = lazy(() => import("./pages/LocationSearch"));
+const MapLayout = lazy(() => import("./layouts/MapLayout"));
 
 const SPLASH_SHOWN_KEY = "lably_splash_shown";
 
@@ -49,23 +50,17 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/password-updated" element={<PasswordUpdated />} />
 
+          {/* One persistent map shared by both pages */}
           <Route
-            path="/home"
             element={
               <ProtectedRoute>
-                <Home />
+                <MapLayout />
               </ProtectedRoute>
             }
-          />
-
-          <Route
-            path="/location-search"
-            element={
-              <ProtectedRoute>
-                <LocationSearch />
-              </ProtectedRoute>
-            }
-          />
+          >
+            <Route path="/home" element={<Home />} />
+            <Route path="/location-search" element={<LocationSearch />} />
+          </Route>
         </Routes>
       </Suspense>
     </BrowserRouter>

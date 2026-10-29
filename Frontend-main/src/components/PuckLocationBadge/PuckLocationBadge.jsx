@@ -3,7 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { MapPin, Navigation } from "lucide-react";
 import "./PuckLocationBadge.css";
 
-function PuckLocationBadge({ address, onChangeLocation }) {
+// `bottomInset` = height (px) of the bottom sheet covering the map. The map
+// keeps the puck centred in the part above the sheet, so this hit area moves
+// with it.
+function PuckLocationBadge({ address, onChangeLocation, bottomInset = 0 }) {
   const [expanded, setExpanded] = useState(false);
   const rootRef = useRef(null);
   const navigate = useNavigate();
@@ -35,6 +38,7 @@ function PuckLocationBadge({ address, onChangeLocation }) {
       onPointerEnter={() => setExpanded(true)}
       onPointerLeave={() => setExpanded(false)}
       onClick={() => setExpanded((prev) => !prev)}
+      style={{ top: `calc((100% - ${bottomInset}px) / 2 - 18px)` }}
       role="button"
       tabIndex={0}
     >

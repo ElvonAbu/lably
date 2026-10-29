@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Check, Search, FlaskConical } from "lucide-react";
-import { useSheetDrag } from "../../hooks/useSheetDrag";
+import { useSheetDrag } from "../../hooks/UseSheetDrag";
 import "./SymptomsCard.css";
 
 const LEFT_SYMPTOMS = [

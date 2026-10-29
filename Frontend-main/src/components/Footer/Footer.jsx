@@ -1,8 +1,35 @@
 import "./Footer.css";
 import { Icon } from "@iconify/react";
+import { useState } from "react";
 import Logo from "../Logo/Logo";
 
+/*
+ * Third-party credits (Creative Commons BY 4.0 requires attribution).
+ * To add another credit later, just add an object to this list.
+ */
+const CREDITS = [
+  {
+    title: "Modern Scientist in a Lab Coat",
+    titleUrl:
+      "https://sketchfab.com/3d-models/modern-scientist-in-a-lab-coat-e835a3b126a4463583727dbac2fedecc",
+    author: "restore50",
+    authorUrl: "https://sketchfab.com/restore50",
+    licence: "CC BY 4.0",
+    licenceUrl: "http://creativecommons.org/licenses/by/4.0/",
+  },
+  {
+    title: "Young Scientist in a White Lab Coat",
+    titleUrl: "https://skfb.ly/pIHW8",
+    author: "restore50",
+    authorUrl: "https://sketchfab.com/restore50",
+    licence: "CC BY 4.0",
+    licenceUrl: "http://creativecommons.org/licenses/by/4.0/",
+  },
+];
+
 function Footer() {
+
+  const [showCredits, setShowCredits] = useState(false);
 
   return (
 
@@ -177,6 +204,49 @@ function Footer() {
 
           </p>
 
+          <button
+            type="button"
+            className="footer-credits-toggle"
+            aria-expanded={showCredits}
+            aria-controls="footer-credits-panel"
+            onClick={() => setShowCredits((v) => !v)}
+          >
+            Credits
+          </button>
+
+        </div>
+
+        <div
+          id="footer-credits-panel"
+          className={`footer-credits ${showCredits ? "is-open" : ""}`}
+        >
+          <div className="footer-credits-inner">
+
+            <p className="footer-credits-heading">3D models</p>
+
+            <ul>
+              {CREDITS.map((c) => (
+                <li key={c.title}>
+                  <a href={c.titleUrl} target="_blank" rel="noopener noreferrer">
+                    “{c.title}”
+                  </a>
+                  {" "}by{" "}
+                  <a href={c.authorUrl} target="_blank" rel="noopener noreferrer">
+                    {c.author}
+                  </a>
+                  {" "}·{" "}
+                  <a href={c.licenceUrl} target="_blank" rel="noopener noreferrer">
+                    {c.licence}
+                  </a>
+                </li>
+              ))}
+            </ul>
+
+            <p className="footer-credits-note">
+              Simplified, rigged and animated for LABLY.
+            </p>
+
+          </div>
         </div>
 
       </div>

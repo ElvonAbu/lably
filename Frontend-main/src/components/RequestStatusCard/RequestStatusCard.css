@@ -125,8 +125,18 @@
   color:var(--primary);
 }
 
-.request-status-row span{
+/* Only the text grows — not the icon tile (it used to stretch too) */
+.request-status-row .request-status-row-text{
   flex:1;
+  min-width:0;
+}
+
+.request-status-row-text-saved{
+  color:var(--text);
+  font-weight:600;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 
 .request-status-chevron{
@@ -138,6 +148,124 @@
 .request-status-chevron-open{
   transform:rotate(90deg);
 }
+
+/* ---------- note editor (Save / Cancel) ---------- */
+
+.request-status-note-editor{
+  padding:.85rem 0;
+  border-bottom:1px solid var(--border);
+}
+
+.request-status-note-title{
+  display:block;
+  margin:0 0 .55rem;
+  font-size:clamp(.82rem,.3vw + .76rem,.92rem);
+  font-weight:700;
+  color:var(--text);
+}
+
+.request-status-note-editor .request-status-notes-input{
+  margin:0;
+  resize:none;
+}
+
+.request-status-note-footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:.75rem;
+  margin-top:.6rem;
+}
+
+.request-status-note-count{
+  font-size:.78rem;
+  color:var(--text-light);
+}
+
+.request-status-note-actions{
+  display:flex;
+  gap:.5rem;
+}
+
+.request-status-note-btn{
+  font-family:inherit;
+  font-size:.9rem;
+  font-weight:700;
+  border-radius:999px;
+  padding:.5rem 1.15rem;
+  cursor:pointer;
+  transition:var(--transition);
+}
+
+.request-status-note-btn-cancel{
+  background:none;
+  border:1.5px solid var(--border);
+  color:var(--text-light);
+}
+.request-status-note-btn-cancel:hover{ background:#fff; color:var(--text); }
+
+.request-status-note-btn-save{
+  background:var(--primary);
+  border:1.5px solid var(--primary);
+  color:#fff;
+}
+.request-status-note-btn-save:hover{ background:var(--primary-hover); }
+
+/* ---------- added tests ---------- */
+
+.request-status-tests .request-status-row{
+  border-bottom:none;
+}
+
+.request-status-chips{
+  list-style:none;
+  margin:0;
+  padding:0 0 .85rem;
+  display:flex;
+  flex-wrap:wrap;
+  gap:.5rem;
+}
+
+.request-status-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:.35rem;
+  max-width:100%;
+  background:#E6D8FD;
+  color:#4A12A8;
+  font-size:clamp(.78rem,.3vw + .72rem,.88rem);
+  font-weight:600;
+  line-height:1.2;
+  padding:.4rem .55rem .4rem .8rem;
+  border-radius:999px;
+}
+
+.request-status-chip:only-child{
+  padding-right:.8rem;
+}
+
+.request-status-chip-label{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+.request-status-chip-remove{
+  flex-shrink:0;
+  width:20px;
+  height:20px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:none;
+  border-radius:50%;
+  background:rgba(74,18,168,.14);
+  color:#4A12A8;
+  padding:0;
+  cursor:pointer;
+  transition:background .15s ease;
+}
+.request-status-chip-remove:hover{ background:rgba(74,18,168,.28); }
 
 .request-status-notes-input{
   width:100%;

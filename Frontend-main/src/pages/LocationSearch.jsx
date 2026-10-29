@@ -8,17 +8,30 @@ import SymptomsCard from "../components/SymptomsCard/SymptomsCard";
 import PersonalInfoCard from "../components/PersonalInfoCard/PersonalInfoCard";
 import RequestStatusCard from "../components/RequestStatusCard/RequestStatusCard";
 import PuckLocationBadge from "../components/PuckLocationBadge/PuckLocationBadge";
+import ScientistFoundCard from "../components/ScientistFoundCard/ScientistFoundCard";
+import NoScientistFoundCard from "../components/NoScientistFoundCard/NoScientistFoundCard";
 import ChangeLocationConfirm from "../components/ChangeLocationConfirm/ChangeLocationConfirm";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { MapPin, Search, FlaskConical, X, Trash2 } from "lucide-react";
 
-import Map from "../components/Map/Map";
+import { useMapConfig } from "../context/MapContext";
 import FloatingButtons from "../components/FloatingButtons/FloatingButtons";
 import { useDebounce } from "../hooks/UseDebounce";
+import { useSimulatedRiders } from "../hooks/UseSimulatedRiders";
+import { useScientistMatch } from "../hooks/UseScientistMatch";
+import { REQUEST_SEARCH_SECONDS } from "../utils/requestSearch";
 import { useSignOut } from "../hooks/UseSignOut";
 import { saveUserLocation } from "../api/locationApi";
+import {
+  getMyPatientProfile,
+  savePatientDetails,
+  updateMyPatientProfile,
+  backendPatientToFrontend,
+} from "../api/patientApi";
+// === NEW: booking API (POST /testrequest) ===
+import { createTestRequest, cancelTestRequest } from "../api/testRequestApi";
 import { useLocationPermission } from "../hooks/UseLocationPermission";
 import TestChoiceCard from "../components/TestChoiceCard/TestChoiceCard";
 
@@ -40,14 +53,6 @@ const FALLBACK_CENTER = {
 const SAVED_ADDRESSES_KEY = "lably_saved_addresses";
 const MAX_SAVED_ADDRESSES = 10;
 
-/*
- * Persisted "myself" profile — separate from the saved
- * addresses. This is what lets LocationSearch know, the
- * next time the user books for themselves, whether there's
- * existing health data to reuse (or re-enter).
- */
-const MYSELF_INFO_KEY = "lably_myself_info";
-
 /* ==================================================
    SESSION TOKEN
 ================================================== */
@@ -57,6 +62,30 @@ function generateSessionToken() {
     return crypto.randomUUID();
   }
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+// API responses can wrap the patient record in different levels.
+// Normalize the common shapes before reading the patient ID/profile.
+function unwrapPatientResponse(response) {
+  let value = response?.data ?? response;
+  for (let i = 0; i < 4 && value; i += 1) {
+    if (value.patient && typeof value.patient === "object") {
+      value = value.patient;
+      continue;
+    }
+    if (value.data && typeof value.data === "object" && !Array.isArray(value.data)) {
+      value = value.data;
+      continue;
+    }
+    break;
+  }
+  return value && typeof value === "object" ? value : null;
+}
+
+function getPatientId(response) {
+  const patient = unwrapPatientResponse(response);
+  const id = patient?._id ?? patient?.id ?? response?.data?.patientid ?? response?.data?.patientId;
+  return id == null || id === "" ? null : String(id);
 }
 
 /* ==================================================
@@ -69,19 +98,6 @@ function loadSavedAddresses() {
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
-  }
-}
-
-/* ==================================================
-   LOAD MYSELF INFO
-================================================== */
-
-function loadMyselfInfo() {
-  try {
-    const raw = localStorage.getItem(MYSELF_INFO_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
   }
 }
 
@@ -106,14 +122,9 @@ function LocationSearch() {
 
   const { permissionState } = useLocationPermission();
 
-  const [deniedFallback, setDeniedFallback] = useState(false);
+  const { setMapConfig } = useMapConfig();
 
-  /*
-   * Live tracking starts on if the route asked for it OR
-   * if we already have permission and nothing cached —
-   * see the effect below, which flips it on as soon as
-   * the browser reports "granted".
-   */
+  const [deniedFallback, setDeniedFallback] = useState(false);
 
   const [isLiveTracking, setIsLiveTracking] = useState(() =>
     Boolean(routeState?.auto)
@@ -125,13 +136,6 @@ function LocationSearch() {
     permissionState === "denied" ||
     (deniedFallback && permissionState !== "granted");
 
-  /*
-   * === CHANGED: setState calls deferred with queueMicrotask —
-   * same fix as the effect below. This one was gated behind a
-   * ref check so it only ever fires once per block/recover
-   * cycle, but the lint rule flags the direct call regardless
-   * of how narrow the condition is.
-   */
   useEffect(() => {
     if (isLocationBlocked) {
       wasBlockedRef.current = true;
@@ -158,11 +162,6 @@ function LocationSearch() {
 
   const searchSessionTokenRef = useRef(generateSessionToken());
 
-  /*
-   * Seeded from the cached location so the address box is
-   * already filled in when the user comes back to this page.
-   */
-
   const [query, setQuery] = useState(
     () => loadLastLocation()?.address ?? ""
   );
@@ -173,52 +172,71 @@ function LocationSearch() {
 
   /* ==================================================
      ACTIVE OVERLAY
-
-     Controls:
-     - ChooseTestCard        ("test")
-     - SymptomsCard          ("symptoms")
-     - TestPackageCard       ("testpackage")
-     - PersonalInfoCard      ("personalinfo")
-     - RequestStatusCard     ("requeststatus")
-
-     (BookingWhoCard and EditHealthDataCard are their own
-     booleans, same pattern as showTestChoice below — they
-     sit "before" activeOverlay in the flow.)
   ================================================== */
 
   const [activeOverlay, setActiveOverlay] = useState(null);
 
-  /*
-   * Which of the three "how would you like to proceed"
-   * choices this request started from — needed so
-   * RequestStatusCard knows whether "Add test" applies,
-   * and where it should route back to.
-   */
-
   const [requestOrigin, setRequestOrigin] = useState(null);
 
   /*
-   * Who this request is for. Determines: whether we check
-   * for an existing saved profile (myself only), and the
-   * wording PersonalInfoCard shows ("your" vs "their").
+   * Who THIS booking is for.
+   * "myself"  → use/create relationship: "self"
+   * "someone" → always create relationship: "other"
    */
-
   const [bookingFor, setBookingFor] = useState(null);
 
   /*
-   * The user's own saved profile, persisted across visits —
-   * separate from `personalInfo` below, which is just
-   * whatever is currently filled in for THIS request
-   * (could be the user's own info, or someone else's).
+   * Self profile from backend only (GET /patientdetails/me).
    */
+  const [myselfInfo, setMyselfInfo] = useState(null);
 
-  const [myselfInfo, setMyselfInfo] = useState(() => loadMyselfInfo());
-
+  /*
+   * Patient record for THIS booking (self or other).
+   * activePatientId = Mongo _id sent as patientid on POST /testrequest
+   */
   const [selectedTests, setSelectedTests] = useState([]);
+
+  // Note the user leaves for the scientist (shown on the request status card)
+  // TODO(backend): send this with the booking once the API has a note field.
+  const [requestNote, setRequestNote] = useState("");
+  const [, setSelectedSymptoms] = useState([]);
+  const [, setSelectedPackageId] = useState(null);
   const [personalInfo, setPersonalInfo] = useState(null);
+  const [activePatientId, setActivePatientId] = useState(null);
+
+  // Set after successful POST /testrequest
+  const [activeBookingId, setActiveBookingId] = useState(null);
+  const [bookingError, setBookingError] = useState(null);
+
+  // --- speed: do network work in the background, not between cards ---
+  // The profile is requested as soon as the page opens, so "Myself" can
+  // move straight on instead of waiting for the server.
+  const profilePromiseRef = useRef(null);
+  // Saving the patient / creating the booking run in the background while the
+  // next card is already on screen; later steps wait on these if needed.
+  const patientPromiseRef = useRef(null);
+  const bookingPromiseRef = useRef(null);
+
+  useEffect(() => {
+    profilePromiseRef.current = getMyPatientProfile().catch(() => null);
+  }, []);
 
   const [showChangeLocationConfirm, setShowChangeLocationConfirm] =
     useState(false);
+
+  /*
+   * Request status screen
+   *   "searching" → puck blinks, map slowly zooms out, riders on the map
+   *   "found"     → a scientist accepted: found screen + fitted map
+   *   "not-found" → time ran out, nobody accepted: no-scientist card
+   */
+  const [requestPhase, setRequestPhase] = useState("searching");
+  const [matchedScientist, setMatchedScientist] = useState(null);
+  const [scientistAddress, setScientistAddress] = useState(null);
+
+  // Height of the request bottom sheet, so the map keeps the puck centred
+  // in the part of the map that is still visible above it.
+  const [sheetHeight, setSheetHeight] = useState(0);
 
   const [showTestChoice, setShowTestChoice] = useState(false);
   const [showBookingWho, setShowBookingWho] = useState(false);
@@ -238,22 +256,9 @@ function LocationSearch() {
     loadSavedAddresses()
   );
 
-  /* ==================================================
-     SELECTED PLACE
-
-     Seeded from the cached location so a confirmed
-     location survives leaving and re-entering this page.
-  ================================================== */
-
   const [selectedPlace, setSelectedPlace] = useState(
     () => loadLastLocation()
   );
-
-  /*
-   * Any time a place is confirmed, cache it — this is the
-   * single write point, so every path that sets a place
-   * (search, saved address, map drag, GPS) is covered.
-   */
 
   useEffect(() => {
     if (selectedPlace) {
@@ -261,19 +266,6 @@ function LocationSearch() {
     }
   }, [selectedPlace]);
 
-  /*
-   * If the device already has permission and we have no
-   * location yet, turn live tracking straight on rather
-   * than waiting for the user to act.
-   */
-
-  /*
-   * === CHANGED: setState deferred with queueMicrotask — this
-   * is the effect that was flagged. It's still a legitimate
-   * effect (reacting to the device already having permission
-   * granted, an external signal), just moved out of the
-   * effect's synchronous call stack.
-   */
   useEffect(() => {
     if (permissionState !== "granted" || selectedPlace) return;
 
@@ -597,13 +589,98 @@ function LocationSearch() {
 
   const isPuckDraggable = activeOverlay !== "requeststatus";
 
+  const isRequestOpen = activeOverlay === "requeststatus";
+
+  // Once the search has ended (found or not-found) the puck stops blinking.
+  // "not-found" reuses "found" with no scientist, so the camera just holds.
+  const mapMode = !isRequestOpen
+    ? "idle"
+    : requestPhase === "found" || requestPhase === "not-found"
+    ? "found"
+    : "searching";
+
+  // TODO(backend): replace with the real live scientist positions.
+  const riders = useSimulatedRiders({
+    origin: selectedPlace
+      ? { lat: selectedPlace.lat, lng: selectedPlace.lng }
+      : null,
+    active: isRequestOpen && requestPhase !== "not-found",
+  });
+
+  // The scientist who accepted is the one already riding towards the user.
+  const scientistPosition =
+    requestPhase === "found" && riders[0] ? riders[0] : null;
+
+  const ridersRef = useRef(riders);
+
+  useEffect(() => {
+    ridersRef.current = riders;
+  });
+
+  const handleScientistMatch = useCallback(
+    async (profile) => {
+      setMatchedScientist(profile);
+      setScientistAddress(null);
+      setRequestPhase("found");
+
+      const position = ridersRef.current[0];
+
+      if (position) {
+        const address = await reverseGeocode(position.lat, position.lng);
+        setScientistAddress(address);
+      }
+    },
+    [reverseGeocode]
+  );
+
+  // TODO(backend): real "a scientist accepted" signal (see UseScientistMatch.js)
+  useScientistMatch({
+    enabled: isRequestOpen && requestPhase === "searching",
+    onMatch: handleScientistMatch,
+  });
+
+  // Push this page's map settings to the shared, persistent map.
+  // Layout effect so the map is repositioned before the screen paints.
+  useLayoutEffect(() => {
+    setMapConfig({
+      longitude: mapCenter.lng,
+      latitude: mapCenter.lat,
+      zoom: isLiveTracking ? 16.4 : 10,
+      sessionKey: "search",
+      locationZoom: 16.4,
+      markerSize: 50,
+      showMarker: isLocationConfirmed,
+      live: isLiveTracking,
+      trackGps: mapTrackGps,
+      draggableMarker: isPuckDraggable,
+      onLocationChange: handleMapLocationChange,
+      onPermissionDenied: handlePermissionDenied,
+      mode: mapMode,
+      bottomPadding: isRequestOpen ? sheetHeight : 0,
+      searchDurationMs: REQUEST_SEARCH_SECONDS * 1000,
+      userPuck: isRequestOpen,
+      riders,
+      scientist: scientistPosition,
+    });
+  }, [
+    mapCenter.lng,
+    mapCenter.lat,
+    isLiveTracking,
+    isLocationConfirmed,
+    mapTrackGps,
+    isPuckDraggable,
+    isRequestOpen,
+    mapMode,
+    sheetHeight,
+    riders,
+    scientistPosition,
+    handleMapLocationChange,
+    handlePermissionDenied,
+    setMapConfig,
+  ]);
+
   /* ==================================================
      GET TESTED
-
-     The card now opens IMMEDIATELY. Persisting the address
-     and POSTing the location are fire-and-forget — they no
-     longer block the UI, which is what was making this
-     button feel slow to respond.
   ================================================== */
 
   const handleGetTested = () => {
@@ -622,35 +699,60 @@ function LocationSearch() {
 
   /* ==================================================
      BOOKING WHO → NEXT
+     (patient API only — NOT testRequest)
   ================================================== */
 
-  const handleBookingWhoNext = (choice) => {
+  const handleBookingWhoNext = async (choice) => {
     setShowBookingWho(false);
     setBookingFor(choice);
+    setActivePatientId(null);
+    setPersonalInfo(null);
+    setMyselfInfo(null);
+    setBookingError(null);
 
     if (choice === "myself") {
-      if (myselfInfo) {
-        setShowEditCheck(true);
-      } else {
+      try {
+        // Never make the user stare at a blank map waiting for a slow server:
+        // if the profile isn't back within 1.5 s, go to the details form.
+        const res = await Promise.race([
+          profilePromiseRef.current ?? getMyPatientProfile(),
+          new Promise((resolve) => setTimeout(() => resolve(null), 1500)),
+        ]);
+        if (!res) throw new Error("No profile");
+        const patient = unwrapPatientResponse(res);
+        const fromApi = backendPatientToFrontend(patient);
+        const patientId = getPatientId(res) ?? patient?._id ?? patient?.id;
+
+        if (fromApi && patientId) {
+          setMyselfInfo({
+            ...fromApi,
+            _id: String(patientId),
+          });
+          setActivePatientId(String(patientId));
+          setShowEditCheck(true);
+        } else {
+          // A profile without a usable database ID cannot be booked against.
+          setActiveOverlay("personalinfo");
+        }
+      } catch (error) {
+        console.warn("LABLY getMyPatientProfile failed:", error);
         setActiveOverlay("personalinfo");
       }
       return;
     }
 
+    // Someone else
     setActiveOverlay("personalinfo");
   };
 
   /* ==================================================
      USE EXISTING DATA — YES / NO
-
-     Yes → reuse the saved profile as-is, skip the form.
-     No  → open the form so they can fill it in again,
-           pre-filled so they only change what's wrong.
   ================================================== */
 
   const handleUseExistingYes = () => {
     setShowEditCheck(false);
     setPersonalInfo(myselfInfo);
+    setActivePatientId(myselfInfo?._id ?? null);
     setShowTestChoice(true);
   };
 
@@ -662,27 +764,65 @@ function LocationSearch() {
 
   /* ==================================================
      PERSONAL INFO → NEXT
+     (patient API only — NOT testRequest)
   ================================================== */
 
   const handlePersonalInfoNext = (data) => {
+    setBookingError(null);
     setPersonalInfo(data);
 
-    if (bookingFor === "myself") {
-      setMyselfInfo(data);
+    const relationship = bookingFor === "myself" ? "self" : "other";
 
+    // Save in the background and move to the next card straight away.
+    const saving = (async () => {
+      let response;
       try {
-        localStorage.setItem(MYSELF_INFO_KEY, JSON.stringify(data));
+        response = await savePatientDetails(data, relationship);
       } catch (error) {
-        console.warn("LABLY failed to save personal info:", error);
+        // If the self profile already exists, update it instead of stopping
+        // the booking flow on the backend's duplicate-profile response.
+        if (relationship !== "self" || error?.status !== 409) throw error;
+        response = await updateMyPatientProfile(data);
       }
-    }
+
+      const patient = unwrapPatientResponse(response);
+      const id = getPatientId(response) ?? patient?._id ?? patient?.id;
+
+      if (!id) {
+        console.warn("LABLY: patient details were saved but the response had no patient ID:", response);
+        throw new Error("Your details were received, but the patient ID was not returned. Please try again or contact support.");
+      }
+
+      const patientId = String(id);
+      setActivePatientId(patientId);
+
+      if (relationship === "self") {
+        const mapped = backendPatientToFrontend(patient) || data;
+        setMyselfInfo({ ...mapped, _id: patientId });
+      }
+
+      return patientId;
+    })();
+
+    patientPromiseRef.current = saving;
 
     setActiveOverlay(null);
     setShowTestChoice(true);
+
+    saving.catch((error) => {
+      if (patientPromiseRef.current !== saving) return;
+      console.warn("LABLY saving patient details failed:", error);
+      // Go back to the form so the user can retry.
+      setShowTestChoice(false);
+      setActiveOverlay("personalinfo");
+      setBookingError(error?.message || "Could not save patient information. Please try again.");
+    });
   };
 
   /* ==================================================
      TEST CHOICE NEXT
+     (UI only — opens test / symptoms / package overlay)
+     testRequest is NOT called here
   ================================================== */
 
   const handleTestChoiceNext = (selectedOption) => {
@@ -710,16 +850,98 @@ function LocationSearch() {
   };
 
   /* ==================================================
-     ANY OF THE THREE "PROCEED" CARDS → REQUEST STATUS
+     SUBMIT BOOKING → POST /testrequest
+
+     THIS is the only place createTestRequest (testRequestApi) runs.
+     Called when user finishes:
+       - ChooseTestCard (proceedMode: "test")
+       - SymptomsCard   (proceedMode: "symptoms")
+       - TestPackageCard (proceedMode: "checkup")
   ================================================== */
 
-  const handleProceedToRequestStatus = () => {
+  const submitBooking = async ({
+    proceedMode,
+    selectedTests: tests = [],
+    symptoms = [],
+    packageId = null,
+  }) => {
+    setBookingError(null);
+
+    // Show the "looking for a scientist" card IMMEDIATELY. Waiting for the
+    // patient to finish saving and for the booking to be created happens in
+    // the background (it used to block the card for as long as the server
+    // took to answer).
+    const returnTo = activeOverlay;
+
+    setRequestPhase("searching");
+    setMatchedScientist(null);
+    setScientistAddress(null);
     setActiveOverlay("requeststatus");
+
+    const creating = (async () => {
+      let patientId = activePatientId;
+
+      if (!patientId && patientPromiseRef.current) {
+        try {
+          patientId = await patientPromiseRef.current;
+        } catch {
+          // the form is re-opened with the error by the patient-save handler
+          const silent = new Error("patient-save-failed");
+          silent.silent = true;
+          throw silent;
+        }
+      }
+
+      if (!patientId) {
+        throw new Error(
+          "Patient profile missing. Go back and enter patient info."
+        );
+      }
+
+      // ========== TESTREQUEST API CALL ==========
+      // POST /testrequest
+      // Body: patientid, proceedMode, selectedTests | symptoms | packageId, location
+      // Backend resolves → resolvedTests (lab codes) and saves Status: Pending
+      const res = await createTestRequest({
+        patientid: patientId,
+        proceedMode,
+        selectedTests: tests,
+        symptoms,
+        packageId,
+        location: selectedPlace
+          ? {
+              lat: selectedPlace.lat,
+              lng: selectedPlace.lng,
+              address: selectedPlace.address,
+            }
+          : null,
+      });
+      // ========== END TESTREQUEST API CALL ==========
+
+      // res.data.resolvedTests = final list the lab should run
+      const id = res?.data?._id || null;
+      setActiveBookingId(id);
+      console.log("LABLY booking saved:", res?.data);
+      return id;
+    })();
+
+    bookingPromiseRef.current = creating;
+
+    creating.catch((error) => {
+      if (bookingPromiseRef.current !== creating) return;
+      if (error?.silent) return;
+      console.warn("LABLY createTestRequest failed:", error);
+      // Put the user back where they were, with the error.
+      setActiveOverlay(returnTo || requestOrigin || "personalinfo");
+      setBookingError(error.message || "Could not create booking");
+    });
   };
 
-  /* ==================================================
-     REQUEST STATUS ACTIONS
-  ================================================== */
+  // Remove one test from the request (the card never offers to remove the last)
+  // TODO(backend): sync with the booking once there is an "update tests" endpoint.
+  const handleRemoveTest = (label) => {
+    setSelectedTests((prev) => prev.filter((test) => test !== label));
+  };
 
   const handleAddTestFromStatus = () => {
     if (requestOrigin === "test") {
@@ -727,39 +949,77 @@ function LocationSearch() {
     }
   };
 
-  /*
-   * Cancelling clears the REQUEST, not the location —
-   * the user is still standing where they were standing.
-   */
+  const handleNoScientistFound = useCallback(() => {
+    setRequestPhase("not-found");
+  }, []);
+
+  const handleJoinWaitlist = useCallback(() => {
+    // TODO(backend): connect this button to the waitlist signup endpoint.
+    // No waitlist endpoint exists in the current frontend source.
+    console.info("LABLY: Join the waitlist clicked; waitlist API is not connected yet.");
+  }, []);
+
+  // Tell the backend the booking is cancelled (PATCH /testrequest/:id/cancel).
+  // Fire-and-forget: the UI resets either way.
+  const cancelBookingOnServer = () => {
+    if (!activeBookingId) {
+      // The booking may still be being created: cancel it once it exists.
+      const pending = bookingPromiseRef.current;
+      bookingPromiseRef.current = null;
+      if (pending) {
+        pending
+          .then((id) => (id ? cancelTestRequest(id) : null))
+          .catch(() => {});
+      }
+      return;
+    }
+
+    cancelTestRequest(activeBookingId).catch((error) => {
+      console.warn("LABLY cancelTestRequest failed:", error);
+    });
+  };
 
   const handleCancelRequest = () => {
+    cancelBookingOnServer();
+    setRequestPhase("searching");
+    setMatchedScientist(null);
+    setScientistAddress(null);
     setActiveOverlay(null);
     setRequestOrigin(null);
     setSelectedTests([]);
+    setRequestNote("");
+    setSelectedSymptoms([]);
+    setSelectedPackageId(null);
     setPersonalInfo(null);
+    setActivePatientId(null);
+    setActiveBookingId(null);
+    setBookingError(null);
     setBookingFor(null);
+    setMyselfInfo(null);
   };
 
-  /*
-   * Changing location is the one case where the cached
-   * location SHOULD be dropped — that's the whole point.
-   */
-
   const handleConfirmChangeLocation = () => {
+    cancelBookingOnServer();
+    setRequestPhase("searching");
+    setMatchedScientist(null);
+    setScientistAddress(null);
     clearLastLocation();
     setSelectedPlace(null);
     setQuery("");
     setActiveOverlay(null);
     setRequestOrigin(null);
     setSelectedTests([]);
+    setRequestNote("");
+    setSelectedSymptoms([]);
+    setSelectedPackageId(null);
     setPersonalInfo(null);
+    setActivePatientId(null);
+    setActiveBookingId(null);
+    setBookingError(null);
     setBookingFor(null);
+    setMyselfInfo(null);
     setShowChangeLocationConfirm(false);
   };
-
-  /* ==================================================
-     BACK BUTTON
-  ================================================== */
 
   const handleBack = () => {
     if (activeOverlay === "requeststatus") {
@@ -777,10 +1037,6 @@ function LocationSearch() {
     });
   };
 
-  /* ==================================================
-     MENU
-  ================================================== */
-
   const menuItems = [
     {
       label: "Help",
@@ -794,29 +1050,15 @@ function LocationSearch() {
     },
   ];
 
-  /* ==================================================
-     RENDER
-  ================================================== */
-
   return (
-    <div className="location-search-page">
+    <>
       {logoutError && (
         <p className="home-toast home-toast-error">{logoutError}</p>
       )}
 
-      <Map
-        longitude={mapCenter.lng}
-        latitude={mapCenter.lat}
-        zoom={isLiveTracking ? 16.4 : 10}
-        locationZoom={16.4}
-        markerSize={50}
-        showMarker={isLocationConfirmed}
-        live={isLiveTracking}
-        trackGps={mapTrackGps}
-        draggableMarker={isPuckDraggable}
-        onLocationChange={handleMapLocationChange}
-        onPermissionDenied={handlePermissionDenied}
-      />
+      {bookingError && (
+        <p className="home-toast home-toast-error">{bookingError}</p>
+      )}
 
       <FloatingButtons
         variant="search"
@@ -1007,21 +1249,12 @@ function LocationSearch() {
         </div>
       )}
 
-      {/* ==================================================
-         BOOKING WHO CARD — who is this request for?
-      ================================================== */}
-
       {showBookingWho && (
         <BookingWhoCard
           onNext={handleBookingWhoNext}
           onClose={() => setShowBookingWho(false)}
         />
       )}
-
-      {/* ==================================================
-         USE EXISTING DATA CARD — only for "myself" when a
-         saved profile already exists.
-      ================================================== */}
 
       {showEditCheck && (
         <EditHealthDataCard
@@ -1030,13 +1263,10 @@ function LocationSearch() {
           onClose={() => {
             setShowEditCheck(false);
             setBookingFor(null);
+            setMyselfInfo(null);
           }}
         />
       )}
-
-      {/* ==================================================
-         TEST CHOICE CARD
-      ================================================== */}
 
       {showTestChoice && (
         <TestChoiceCard
@@ -1046,54 +1276,63 @@ function LocationSearch() {
       )}
 
       {/* ==================================================
-         CHOOSE TEST CARD
+         CHOOSE TEST → submitBooking → TESTREQUEST API
+         When: user taps Get Tested on ChooseTestCard
       ================================================== */}
-
       {activeOverlay === "test" && (
         <ChooseTestCard
           initialSelected={selectedTests}
           gender={personalInfo?.gender}
-          onGetTested={(list) => {
-            console.log("LABLY: tests selected:", list);
+          onGetTested={async (list) => {
             setSelectedTests(list);
-            handleProceedToRequestStatus();
+            // → submitBooking → createTestRequest (POST /testrequest)
+            await submitBooking({
+              proceedMode: "test",
+              selectedTests: list,
+            });
           }}
           onClose={() => setActiveOverlay(null)}
         />
       )}
 
       {/* ==================================================
-         SYMPTOMS CARD
+         SYMPTOMS → submitBooking → TESTREQUEST API
+         When: user taps Get Tested on SymptomsCard
       ================================================== */}
-
       {activeOverlay === "symptoms" && (
         <SymptomsCard
           gender={personalInfo?.gender}
-          onGetTested={(list) => {
-            console.log("LABLY: symptoms selected:", list);
-            handleProceedToRequestStatus();
+          onGetTested={async (list) => {
+            setSelectedSymptoms(list);
+            // → submitBooking → createTestRequest (POST /testrequest)
+            await submitBooking({
+              proceedMode: "symptoms",
+              symptoms: list,
+            });
           }}
           onClose={() => setActiveOverlay(null)}
         />
       )}
 
       {/* ==================================================
-         TEST PACKAGE CARD
+         PACKAGE → submitBooking → TESTREQUEST API
+         When: user picks silver / gold / platinum on TestPackageCard
+         packageId must be lowercase: "silver" | "gold" | "platinum"
       ================================================== */}
-
       {activeOverlay === "testpackage" && (
         <TestPackageCard
-          onNext={(pkg) => {
-            console.log("LABLY: package selected:", pkg);
-            handleProceedToRequestStatus();
+          onNext={async (pkg) => {
+            const packageId = String(pkg).toLowerCase();
+            setSelectedPackageId(packageId);
+            // → submitBooking → createTestRequest (POST /testrequest)
+            await submitBooking({
+              proceedMode: "checkup",
+              packageId,
+            });
           }}
           onClose={() => setActiveOverlay(null)}
         />
       )}
-
-      {/* ==================================================
-         PERSONAL INFO CARD
-      ================================================== */}
 
       {activeOverlay === "personalinfo" && (
         <PersonalInfoCard
@@ -1103,25 +1342,45 @@ function LocationSearch() {
           onClose={() => setActiveOverlay(null)}
         />
       )}
-
-      {/* ==================================================
-         REQUEST STATUS — puck badge + bottom sheet,
-         map and floating buttons stay visible/usable.
-      ================================================== */}
-
       {activeOverlay === "requeststatus" && (
         <div className="request-status-root">
-          <PuckLocationBadge
-            address={selectedPlace?.address}
-            onChangeLocation={() => setShowChangeLocationConfirm(true)}
-          />
+          {requestPhase !== "not-found" && (
+            <PuckLocationBadge
+              address={selectedPlace?.address}
+              onChangeLocation={() => setShowChangeLocationConfirm(true)}
+              bottomInset={sheetHeight}
+            />
+          )}
 
-          <RequestStatusCard
-            address={selectedPlace?.address}
-            canAddTest={requestOrigin === "test"}
-            onAddTest={handleAddTestFromStatus}
-            onCancel={handleCancelRequest}
-          />
+          {requestPhase === "not-found" ? (
+            <NoScientistFoundCard onJoinWaitlist={handleJoinWaitlist} />
+          ) : requestPhase === "found" ? (
+            <ScientistFoundCard
+              scientist={matchedScientist}
+              userAddress={selectedPlace?.address}
+              scientistAddress={scientistAddress}
+              onContact={() => console.log("LABLY: contact scientist")}
+              onMessage={() => console.log("LABLY: in-app message")}
+              onTimeline={() => console.log("LABLY: booking timeline")}
+              onSos={() => console.log("LABLY: SOS emergency")}
+              onCheckout={() => console.log("LABLY: proceed to checkout")}
+              onCancel={handleCancelRequest}
+              onHeightChange={setSheetHeight}
+            />
+          ) : (
+            <RequestStatusCard
+              address={selectedPlace?.address}
+              canAddTest={requestOrigin === "test"}
+              onAddTest={handleAddTestFromStatus}
+              onCancel={handleCancelRequest}
+              onTimeElapsed={handleNoScientistFound}
+              onHeightChange={setSheetHeight}
+              note={requestNote}
+              onNoteChange={setRequestNote}
+              tests={requestOrigin === "test" ? selectedTests : []}
+              onRemoveTest={handleRemoveTest}
+            />
+          )}
         </div>
       )}
 
@@ -1131,7 +1390,7 @@ function LocationSearch() {
           onCancel={() => setShowChangeLocationConfirm(false)}
         />
       )}
-    </div>
+    </>
   );
 }
 
