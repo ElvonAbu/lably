@@ -1,0 +1,48 @@
+.splash-screen{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--background, #fff);
+  transition:opacity .5s ease, visibility .5s ease;
+}
+
+.splash-exit{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+
+.splash-logo{
+  --logo-size: clamp(2.6rem, 9vw, 4.6rem);
+
+  /* ===================== SPEED CONTROLS ===================== */
+  --write-start:          .3s;
+  --write-duration:       1.6s;
+  --smile-pause:          .3s;
+  --lably-smile-duration: 1.8s;
+  /* ============================================================ */
+
+  opacity:0;
+  animation:splashFadeIn .4s ease forwards;
+}
+
+@keyframes splashFadeIn{
+  to{ opacity:1; }
+}
+
+.splash-logo .lably-logo-svg{
+  clip-path: inset(-30% 100% -30% 0%);
+  animation: lablyWordWrite var(--write-duration) linear var(--write-start) forwards;
+}
+
+@keyframes lablyWordWrite{
+  to{ clip-path: inset(-30% 0% -30% 0%); }
+}
+
+.splash-logo .lably-logo-animating .lably-logo-smile-path,
+.splash-logo .lably-logo-animating .lably-logo-letters{
+  animation-delay: calc(var(--write-start) + var(--write-duration) + var(--smile-pause));
+}

@@ -1,0 +1,63 @@
+.map-bottom-sheet{
+
+    position:absolute;
+
+    left:0;
+
+    bottom:0;
+
+    width:100%;
+
+    min-height:clamp(120px,20vw,180px);
+
+    background:var(--surface);
+
+    border-radius:clamp(18px,3vw,32px) clamp(18px,3vw,32px) 0 0;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    padding:clamp(1.2rem,3vw,2rem);
+
+    box-shadow:0 -5px 25px rgba(0,0,0,.12);
+
+    z-index:1000;
+
+    box-sizing:border-box;
+
+}
+
+
+
+.map-location-btn{
+
+    width:min(90%,400px);
+
+    gap:.8rem;
+
+}
+
+
+
+@media(max-width:197px){
+
+.map-bottom-sheet{
+
+min-height:80px;
+
+padding:.7rem;
+
+border-radius:14px 14px 0 0;
+
+}
+
+.map-location-btn{
+
+gap:.4rem;
+
+}
+
+}

@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>LABLY matching test console</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 14px/1.45 system-ui, sans-serif; margin: 0; background: #0f1419; color: #e6e9ee; }
+  header { padding: 12px 16px; background: #161d26; border-bottom: 1px solid #263140; position: sticky; top: 0; z-index: 2; }
+  h1 { font-size: 16px; margin: 0 0 6px; }
+  main { padding: 16px; display: grid; gap: 16px; max-width: 1100px; margin: auto; }
+  section { background: #161d26; border: 1px solid #263140; border-radius: 10px; padding: 12px 14px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #8ea0b5; margin: 0 0 8px; }
+  button, select, input { font: inherit; background: #1f2937; color: #e6e9ee; border: 1px solid #33425a; border-radius: 6px; padding: 6px 10px; }
+  button { cursor: pointer; } button:hover { background: #2a3a52; }
+  input { width: 90px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #263140; }
+  .pill { padding: 1px 8px; border-radius: 999px; font-size: 12px; }
+  .Searching { background: #1d4ed8; } .Matched { background: #15803d; } .NoCoverage { background: #b45309; }
+  .Canceled { background: #6b7280; } .Pending { background: #4b5563; }
+  .up { color: #4ade80; } .down { color: #f87171; } .off, .unknown { color: #fbbf24; }
+  pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12px; max-height: 220px; overflow: auto; background: #0b0f14; padding: 8px; border-radius: 6px; }
+  .muted { color: #8ea0b5; }
+</style>
+</head>
+<body>
+<header>
+  <h1>LABLY matching test console <span class="muted">(dev only)</span></h1>
+  <div id="status" class="muted">loading...</div>
+</header>
+<main>
+
+  <section>
+    <h2>1. Setup</h2>
+    <div class="row">
+      <button onclick="call('POST','/match-dev/seed')">Seed hub + 5 scientists (4 driving, 1 walking)</button>
+      <button onclick="call('POST','/match-dev/reset')">Reset scientists (online + idle)</button>
+      <button onclick="call('POST','/match-dev/route-reset')">Reset cache / breaker / counters</button>
+    </div>
+    <div class="row">
+      Distance mode:
+      <select id="mode"><option>auto</option><option>haversine</option><option>google</option></select>
+      <button onclick="call('POST','/match-dev/route-mode',{mode:$('mode').value})">Set mode</button>
+      <button onclick="call('POST','/match-dev/google-check')">Check Google now</button>
+      <button onclick="call('POST','/match-dev/mapbox-check')">Check Mapbox now</button>
+      <button onclick="call('POST','/match-dev/compare-now')">Compare Google vs Mapbox (latest job)</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. Jobs</h2>
+    <div class="row">
+      lat <input id="lat" value="6.4541" /> lng <input id="lng" value="3.3947" />
+      <button onclick="call('POST','/match-dev/test-job',{lat:+$('lat').value,lng:+$('lng').value})">Create test job</button>
+      <button onclick="cancelLatest()">Cancel latest job</button>
+      <button onclick="twoJobs()">Create 2 jobs at once</button>
+    </div>
+    <table>
+      <thead><tr><th>Job</th><th>Status</th><th>Notified</th><th>Ring</th><th>Time left</th><th>Hub dist</th><th>Matched to</th></tr></thead>
+      <tbody id="jobs"></tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>3. Scientists</h2>
+    <table>
+      <thead><tr><th>Id</th><th>Name</th><th>Mode</th><th>Online</th><th>Idle</th><th>Claimed for job</th><th></th></tr></thead>
+      <tbody id="sci"></tbody>
+    </table>
+    <div class="row">
+      <button onclick="doubleAccept()">Double-accept test (first scientist, newest 2 jobs, same instant)</button>
+      <button onclick="call('POST','/match-dev/simulate-stuck',{})">Simulate crash: first scientist stuck busy</button>
+      <button onclick="call('POST','/match-dev/repair-scientists')">Run stuck-scientist repair</button>
+    </div>
+    <div class="muted"><b>Mode</b>: a WALKING scientist is matched and notified by walking distance and walking time; a DRIVING scientist by driving distance and driving time. Change it per scientist in the table (the scientist app will do this itself).</div>
+    <div class="muted">"Accept" uses the newest job. Accepting a scientist who was not notified, or after the 48s, must fail with 409.</div>
+
+    <h2 style="margin-top:14px">Seed one custom scientist (edge cases)</h2>
+    <div class="row">
+      mode <select id="csMode"><option value="driving">driving scientist</option><option value="walking">walking scientist</option></select>
+      name <input id="csName" placeholder="optional" style="width:140px" />
+      lat <input id="csLat" value="6.4541" /> lng <input id="csLng" value="3.3947" />
+      <label><input type="checkbox" id="csOnline" checked /> online</label>
+      <label><input type="checkbox" id="csAvailable" checked /> idle</label>
+      <button onclick="addCustom()">Add scientist</button>
+      <button onclick="addCustom('driving')">Add DRIVING scientist</button>
+      <button onclick="addCustom('walking')">Add WALKING scientist</button>
+    </div>
+    <div class="row">
+      email (optional \u2014 use your own to actually receive the offer email)
+      <input id="csEmail" placeholder="you@example.com" style="width:220px" />
+    </div>
+    <div class="row">
+      <button onclick="call('DELETE','/match-dev/scientists')">Unseed all seeded scientists</button>
+      <button onclick="if(confirm('Delete EVERY scientist, including real ones?')) call('DELETE','/match-dev/scientists?all=true')">Unseed EVERYONE (danger)</button>
+    </div>
+    <div class="muted">A custom email (not seed+sci-*) is NOT swept up by "Unseed all seeded scientists" \u2014 remove it by id instead.</div>
+  </section>
+
+  <section>
+    <h2>4. Hubs</h2>
+    <table>
+      <thead><tr><th>Id</th><th>Name</th><th>Lat</th><th>Lng</th><th>Radius km</th><th>Active</th><th></th></tr></thead>
+      <tbody id="hubs"></tbody>
+    </table>
+    <div class="row">
+      name <input id="hName" placeholder="optional" style="width:140px" />
+      lat <input id="hLat" value="6.4541" /> lng <input id="hLng" value="3.3947" />
+      radius km <input id="hRadius" value="2.25" style="width:60px" />
+      <button onclick="addHub()">Add hub</button>
+    </div>
+    <div class="muted">Edit a hub's lat/lng/radius inline in the table, then press its Save button to move it.</div>
+  </section>
+
+  <section>
+    <h2>5. Live socket events <span class="muted">(what the patient UI and scientist app would receive)</span></h2>
+    <pre id="events"></pre>
+  </section>
+
+  <section>
+    <h2>6. Last response</h2>
+    <pre id="out"></pre>
+  </section>
+</main>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const short = (id) => (id ? String(id).slice(-6) : "-");
+let jobs = [], scis = [], hubs = [];
+const joined = new Set();
+const socket = io();
+
+function log(line) {
+  const el = $("events");
+  el.textContent = new Date().toLocaleTimeString() + "  " + line + "\n" + el.textContent;
+}
+socket.on("job_update", (p) => {
+  const j = p.job || {};
+  log("job_update  job " + short(j._id) + "  " + j.Status + "  notified=" + (j.matchingState && j.matchingState.notifiedCount) +
+      "  ids-leaked=" + (j.matchingState && j.matchingState.notifiedScientistIds ? "YES (bug)" : "no"));
+});
+socket.on("booking_offer", (o) => {
+  log("booking_offer  job " + short(o.testRequestId) + "  " + (o.withdrawn ? "WITHDRAWN (" + o.status + ")" : "OFFER ring=" + o.stageMin + "min dist=" + o.distanceMin + "min (" + o.distanceM + "m) via " + o.distanceSource + "  | drop-off=" + o.collectionToHubKm + "km  combined=" + o.combinedJourneyM + "m"));
+});
+
+async function api(method, path, body) {
+  const r = await fetch(path, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  let data; try { data = await r.json(); } catch { data = {}; }
+  return { status: r.status, data };
+}
+async function call(method, path, body) {
+  const r = await api(method, path, body);
+  $("out").textContent = method + " " + path + "  ->  " + r.status + "\n" + JSON.stringify(r.data, null, 2);
+  refresh();
+}
+async function cancelLatest() { if (jobs[0]) call("POST", "/match-dev/cancel-job", { jobId: jobs[0]._id }); }
+async function twoJobs() {
+  const body = { lat: +$("lat").value, lng: +$("lng").value };
+  await Promise.all([api("POST", "/match-dev/test-job", body), api("POST", "/match-dev/test-job", body)]);
+  refresh();
+}
+async function accept(scientistId) {
+  if (!jobs[0]) return alert("No job yet");
+  call("POST", "/match-dev/accept", { jobId: jobs[0]._id, scientistId });
+}
+async function setMode(id, travelMode) {
+  call("PATCH", "/match-dev/scientists/" + id, { travelMode });
+}
+async function addCustom(forcedMode) {
+  call("POST", "/match-dev/scientists", {
+    travelMode: forcedMode || $("csMode").value,
+    displayName: $("csName").value || undefined,
+    lat: +$("csLat").value,
+    lng: +$("csLng").value,
+    isOnline: $("csOnline").checked,
+    isAvailable: $("csAvailable").checked,
+    email: $("csEmail").value || undefined,
+  });
+  $("csName").value = ""; $("csEmail").value = "";
+}
+async function removeScientist(id) {
+  call("DELETE", "/match-dev/scientists/" + id);
+}
+async function addHub() {
+  call("POST", "/match-dev/hubs", {
+    name: $("hName").value || undefined,
+    lat: +$("hLat").value,
+    lng: +$("hLng").value,
+    serviceRadiusKm: +$("hRadius").value,
+  });
+  $("hName").value = "";
+}
+async function saveHub(id) {
+  call("PATCH", "/match-dev/hubs/" + id, {
+    lat: +$("hLat_" + id).value,
+    lng: +$("hLng_" + id).value,
+    serviceRadiusKm: +$("hRadius_" + id).value,
+  });
+}
+async function removeHub(id) {
+  call("DELETE", "/match-dev/hubs/" + id);
+}
+async function doubleAccept() {
+  if (jobs.length < 2 || !scis[0]) return alert("Need 2 jobs and a seeded scientist");
+  const sid = scis[0]._id;
+  const rs = await Promise.all(jobs.slice(0, 2).map((j) => api("POST", "/match-dev/accept", { jobId: j._id, scientistId: sid })));
+  $("out").textContent = "Same scientist, 2 jobs, same instant:\n" +
+    rs.map((r, i) => "job " + short(jobs[i]._id) + " -> " + r.status + " " + (r.data.message || "")).join("\n") +
+    "\n\nExpected: exactly ONE 200 and one 409.";
+  refresh();
+}
+
+function render() {
+  $("jobs").innerHTML = jobs.map((j) => {
+    const ms = j.matchingState || {};
+    const left = j.Status === "Searching" && ms.expiresAt ? Math.max(0, Math.ceil((new Date(ms.expiresAt) - Date.now()) / 1000)) + "s" : "-";
+    return "<tr><td>" + short(j._id) + "</td><td><span class='pill " + j.Status + "'>" + j.Status + "</span></td><td>" +
+      (ms.notifiedCount ?? 0) + "</td><td>" + (ms.currentStageMin ?? "-") + " min</td><td>" + left + "</td><td>" +
+      (j.hubSnapshot ? (j.hubSnapshot.distanceKm || 0).toFixed(2) + " km (" + j.hubSnapshot.distanceSource + ")" : "no hub") +
+      "</td><td>" + (j.scientistSnapshot && j.scientistSnapshot.displayName || "-") + "</td></tr>";
+  }).join("") || "<tr><td colspan=7 class='muted'>no jobs yet</td></tr>";
+
+  $("sci").innerHTML = scis.map((s) =>
+    "<tr><td>" + short(s._id) + "</td><td>" + s.displayName + "</td><td><select onchange=\"setMode('" + s._id + "', this.value)\">" +
+    "<option value='driving'" + (s.travelMode === "walking" ? "" : " selected") + ">driving</option>" +
+    "<option value='walking'" + (s.travelMode === "walking" ? " selected" : "") + ">walking</option></select>" +
+    "</td><td>" + s.isOnline + "</td><td>" + s.isAvailable +
+    "</td><td>" + short(s.currentJobId) + "</td><td><button onclick=\"accept('" + s._id + "')\">Accept newest job</button> " +
+    "<button onclick=\"removeScientist('" + s._id + "')\">Remove</button></td></tr>"
+  ).join("") || "<tr><td colspan=7 class='muted'>none: press Seed</td></tr>";
+
+  // Skip re-rendering hub rows while you're mid-edit in one of them (refresh()
+  // polls every 1s, which would otherwise overwrite what you're typing
+  // before you get to press Save).
+  if ($("hubs").contains(document.activeElement)) return;
+  $("hubs").innerHTML = hubs.map((h) =>
+    "<tr><td>" + short(h._id) + "</td><td>" + h.name + "</td>" +
+    "<td><input id='hLat_" + h._id + "' value='" + h.latitude + "' style='width:90px' /></td>" +
+    "<td><input id='hLng_" + h._id + "' value='" + h.longitude + "' style='width:90px' /></td>" +
+    "<td><input id='hRadius_" + h._id + "' value='" + h.serviceRadiusKm + "' style='width:50px' /></td>" +
+    "<td>" + h.isActive + "</td>" +
+    "<td><button onclick=\"saveHub('" + h._id + "')\">Save</button> " +
+    "<button onclick=\"removeHub('" + h._id + "')\">Remove</button></td></tr>"
+  ).join("") || "<tr><td colspan=7 class='muted'>none: press Seed or Add hub</td></tr>";
+}
+
+async function refresh() {
+  const [j, s, h, st] = await Promise.all([api("GET", "/match-dev/jobs"), api("GET", "/match-dev/scientists"), api("GET", "/match-dev/hubs"), api("GET", "/match-dev/route-status")]);
+  jobs = j.data.data || []; scis = s.data.data || []; hubs = h.data.data || [];
+  render();
+  // join socket rooms so we can SEE what each side would receive
+  jobs.forEach((x) => { const k = "j" + x._id; if (!joined.has(k)) { joined.add(k); socket.emit("join", { jobId: x._id }); } });
+  scis.forEach((x) => { const k = "s" + x._id; if (!joined.has(k)) { joined.add(k); socket.emit("join", { scientistId: x._id }); } });
+  const d = st.data, m = d.google || {}, r = d.rules || {}, c = d.stats || {}, u = (d.usage && d.usage.skus) || {};
+  $("status").innerHTML =
+    "Google: <b class='" + m.state + "'>" + m.state + "</b> (" + (m.reason || "") + ") &nbsp;|&nbsp; Mapbox: <b class='" + ((d.mapbox || {}).state) + "'>" + ((d.mapbox || {}).state) + "</b> (" + ((d.mapbox || {}).reason || "") + ") &nbsp;|&nbsp; tiers " + (d.tierOrder || []).join(" > ") + " &nbsp;|&nbsp; mode <b>" + d.mode +
+    "</b> &nbsp;|&nbsp; rule <b>" + r.unverifiedPolicy + "</b> &nbsp;|&nbsp; breaker " + (d.breakerOpen ? "<b class='down'>OPEN " + Math.ceil(d.breakerOpenForMs / 1000) + "s</b>" : "closed") +
+    " &nbsp;|&nbsp; cache " + d.cacheSize + " &nbsp;|&nbsp; requests: directions " + c.directionsRequests + ", matrix " + c.matrixRequests +
+    " (" + c.matrixElements + " elements) &nbsp;|&nbsp; cache hits " + c.cacheHits + " &nbsp;|&nbsp; haversine used " + c.haversineUsed + " &nbsp;|&nbsp; failures " + c.googleFailures +
+    "<br>Usage this month (" + ((d.usage && d.usage.month) || "?") + ", PT) units/limit [http]: " +
+    Object.keys(u).map(function (k) { return k + " " + u[k].units + "/" + u[k].limit + " [" + u[k].httpRequests + "]"; }).join(" | ");
+}
+refresh(); setInterval(refresh, 1000);
+</script>
+</body>
+</html>

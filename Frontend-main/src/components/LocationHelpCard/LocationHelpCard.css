@@ -1,0 +1,87 @@
+/* reuses .location-overlay, .location-permission-card, .location-icon,
+   .location-title, .location-description, .btn-primary from
+   LocationCard.css and global.css — only the new bits below */
+
+.location-help-card{
+
+    width:min(94vw,460px);
+
+}
+
+.location-help-card .location-icon,
+.location-help-card .location-title,
+.location-help-card .location-description{
+
+    text-align:center;
+
+}
+
+.location-help-steps{
+
+    text-align:left;
+
+    margin:0 0 clamp(.8rem,1.8vw,1.2rem);
+
+    padding-left:1.1rem;
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:.3rem;
+
+}
+
+.location-help-steps li{
+
+    color:var(--text-light);
+
+    font-size:clamp(.68rem,.3vw + .64rem,.8rem);
+
+    line-height:1.4;
+
+}
+
+.location-help-card > .btn-primary{
+
+    display:block;
+
+    width:100%;
+
+    box-sizing:border-box;
+
+    height:clamp(38px,7vw,50px);
+
+    font-size:clamp(.78rem,.3vw + .72rem,.95rem);
+
+}
+
+@media(max-width:197px){
+
+.location-help-steps{
+
+gap:.2rem;
+
+padding-left:.8rem;
+
+margin-bottom:.4rem;
+
+}
+
+.location-help-steps li{
+
+font-size:.46rem;
+
+line-height:1.25;
+
+}
+
+.location-help-card > .btn-primary{
+
+height:28px;
+
+font-size:.52rem;
+
+}
+
+}
